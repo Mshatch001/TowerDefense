@@ -89,9 +89,10 @@
     }
 
     function prepareTransparentSprite(image) {
+      const { naturalWidth, naturalHeight } = image;
       const buffer = document.createElement("canvas");
-      buffer.width = image.width;
-      buffer.height = image.height;
+      buffer.width = naturalWidth;
+      buffer.height = naturalHeight;
       const bctx = buffer.getContext("2d");
       bctx.clearRect(0, 0, buffer.width, buffer.height);
       bctx.drawImage(image, 0, 0);
@@ -147,7 +148,11 @@
       ];
       towers.forEach(({ sprite, x, y }) => {
         if (sprite && sprite.complete) {
-          ctx.drawImage(sprite, x - sprite.width / 2, y - sprite.height / 2);
+          ctx.drawImage(
+            sprite,
+            x - sprite.naturalWidth / 2,
+            y - sprite.naturalHeight / 2
+          );
         }
       });
     }
@@ -160,7 +165,11 @@
       ];
       enemies.forEach(({ sprite, x, y }) => {
         if (sprite && sprite.complete) {
-          ctx.drawImage(sprite, x - sprite.width / 2, y - sprite.height / 2);
+          ctx.drawImage(
+            sprite,
+            x - sprite.naturalWidth / 2,
+            y - sprite.naturalHeight / 2
+          );
         }
       });
     }
