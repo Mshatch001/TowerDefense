@@ -90,16 +90,11 @@
     }
 
     function prepareTransparentSprite(image) {
-      const { naturalWidth, naturalHeight } = image;
-      const buffer = document.createElement("canvas");
-      buffer.width = naturalWidth;
-      buffer.height = naturalHeight;
-      const bctx = buffer.getContext("2d");
-      bctx.clearRect(0, 0, buffer.width, buffer.height);
-      bctx.drawImage(image, 0, 0);
-      const prepared = new Image();
-      prepared.src = buffer.toDataURL("image/png");
-      return prepared;
+      // The sprites are already transparent PNG/SVG assets, so we can reuse the
+      // originally loaded image instead of re-encoding through a buffer
+      // canvas. Returning the provided image guarantees we don't miss load
+      // events on a second Image instance.
+      return image;
     }
 
     function loadSprite({ key, src }) {
@@ -107,20 +102,10 @@
         const img = new Image();
         img.onload = () => {
           const prepared = prepareTransparentSprite(img);
-          if (prepared.complete && prepared.naturalWidth > 0) {
-            loadedSprites[key] = prepared;
-            assetsLoaded += 1;
-            updateAssetCounter();
-            resolve();
-          } else {
-            prepared.onload = () => {
-              loadedSprites[key] = prepared;
-              assetsLoaded += 1;
-              updateAssetCounter();
-              resolve();
-            };
-            prepared.onerror = () => reject(new Error(`Failed to prepare sprite: ${key}`));
-          }
+          loadedSprites[key] = prepared;
+          assetsLoaded += 1;
+          updateAssetCounter();
+          resolve();
         };
         img.onerror = () => reject(new Error(`Failed to load ${src}`));
         img.src = src;
