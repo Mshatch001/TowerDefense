@@ -1,47 +1,192 @@
-    const backgroundImg = new Image();
-    const TOTAL_ASSETS = 6; // archer, mage, three enemy sprites, and background art
-    backgroundImg.onload = onAssetLoaded;
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Arcane Forest Defense</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --panel: #0f1b22;
+      --accent: #4dd0e1;
+      --text: #e3f2fd;
+    }
+    body {
+      margin: 0;
+      background: #0b141a;
+      color: var(--text);
+      font-family: "Inter", system-ui, -apple-system, sans-serif;
+      display: grid;
+      min-height: 100vh;
+      place-items: center;
+    }
+    .frame {
+      background: var(--panel);
+      border: 1px solid #1f2f38;
+      border-radius: 16px;
+      padding: 16px;
+      box-shadow: 0 12px 36px rgba(0, 0, 0, 0.4);
+    }
+    h1 {
+      margin: 0 0 12px;
+      font-size: 20px;
+      letter-spacing: 0.04em;
+      text-align: center;
+    }
+    #gameCanvas {
+      background: #0f2d1e;
+      border-radius: 12px;
+      display: block;
+    }
+    .status {
+      margin-top: 8px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 13px;
+      color: #b6c7d3;
+    }
+    .pill {
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: rgba(77, 208, 225, 0.12);
+      color: var(--text);
+      border: 1px solid rgba(77, 208, 225, 0.4);
+      font-weight: 600;
+    }
+  </style>
+</head>
+<body>
+  <div class="frame">
+    <h1>Arcane Forest Defense</h1>
+    <canvas id="gameCanvas" width="800" height="540" aria-label="Tower defense canvas"></canvas>
+    <div class="status">
+      <span id="asset-counter">Loading assets 0/0…</span>
+      <span id="game-status" class="pill">Preparing</span>
+    </div>
+  </div>
 
+  <script>
+    const canvas = document.getElementById("gameCanvas");
+    const ctx = canvas.getContext("2d");
+    const assetCounter = document.getElementById("asset-counter");
+    const gameStatus = document.getElementById("game-status");
 
-    const forestBgSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="800" height="540" viewBox="0 0 800 540">
-      <defs>
-        <linearGradient id="forestGradient" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stop-color="#0d1c12" />
-          <stop offset="100%" stop-color="#10231a" />
-        </linearGradient>
-        <radialGradient id="forestGlow" cx="0.2" cy="0.2" r="0.8">
-          <stop offset="0%" stop-color="#1f4731" stop-opacity="0.9" />
-          <stop offset="100%" stop-color="#10231a" stop-opacity="0.05" />
-        </radialGradient>
-      </defs>
-      <rect width="800" height="540" fill="url(#forestGradient)" />
-      <circle cx="140" cy="120" r="260" fill="url(#forestGlow)" />
-      <circle cx="620" cy="80" r="220" fill="url(#forestGlow)" />
-      <circle cx="400" cy="380" r="260" fill="url(#forestGlow)" />
-      <g stroke="#1f3527" stroke-width="3" stroke-linecap="round">
-        <line x1="120" y1="520" x2="200" y2="360" />
-        <line x1="240" y1="520" x2="320" y2="360" />
-        <line x1="440" y1="520" x2="520" y2="360" />
-        <line x1="560" y1="520" x2="640" y2="360" />
-      </g>
-      <g fill="#1d3a28" opacity="0.32">
-        <ellipse cx="120" cy="520" rx="60" ry="20" />
-        <ellipse cx="240" cy="520" rx="60" ry="20" />
-        <ellipse cx="440" cy="520" rx="60" ry="20" />
-        <ellipse cx="560" cy="520" rx="60" ry="20" />
-      </g>
-    </svg>`;
+    const spriteManifest = [
+      { key: "background", src: "assets/images/forest-bg.svg" },
+      { key: "archer", src: "assets/images/archer.svg" },
+      { key: "mage", src: "assets/images/mage.svg" },
+      { key: "enemyGoblin", src: "assets/images/enemy-goblin.svg" },
+      { key: "enemyOrc", src: "assets/images/enemy-orc.svg" },
+      { key: "enemyWraith", src: "assets/images/enemy-wraith.svg" },
+    ];
 
-    backgroundImg.src = "data:image/svg+xml;base64," + btoa(forestBgSvg);
-      if (backgroundImg.complete && backgroundImg.naturalWidth > 0) {
-        ctx.drawImage(backgroundImg, 0, 0, canvas.width, canvas.height);
+    const loadedSprites = {};
+    let assetsLoaded = 0;
+
+    function updateAssetCounter() {
+      assetCounter.textContent = `Loading assets ${assetsLoaded}/${spriteManifest.length}`;
+    }
+
+    function prepareTransparentSprite(image) {
+      const buffer = document.createElement("canvas");
+      buffer.width = image.width;
+      buffer.height = image.height;
+      const bctx = buffer.getContext("2d");
+      bctx.clearRect(0, 0, buffer.width, buffer.height);
+      bctx.drawImage(image, 0, 0);
+      const prepared = new Image();
+      prepared.src = buffer.toDataURL("image/png");
+      return prepared;
+    }
+
+    function loadSprite({ key, src }) {
+      return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => {
+          const prepared = prepareTransparentSprite(img);
+          if (prepared.complete && prepared.naturalWidth > 0) {
+            loadedSprites[key] = prepared;
+            assetsLoaded += 1;
+            updateAssetCounter();
+            resolve();
+          } else {
+            prepared.onload = () => {
+              loadedSprites[key] = prepared;
+              assetsLoaded += 1;
+              updateAssetCounter();
+              resolve();
+            };
+            prepared.onerror = () => reject(new Error(`Failed to prepare sprite: ${key}`));
+          }
+        };
+        img.onerror = () => reject(new Error(`Failed to load ${src}`));
+        img.src = src;
+      });
+    }
+
+    function loadAllSprites() {
+      updateAssetCounter();
+      return Promise.all(spriteManifest.map(loadSprite));
+    }
+
+    function drawBackground() {
+      const bg = loadedSprites.background;
+      if (bg && bg.complete && bg.naturalWidth > 0) {
+        ctx.drawImage(bg, 0, 0, canvas.width, canvas.height);
       } else {
-        ctx.fillStyle = colors.grass;
+        ctx.fillStyle = "#0f2d1e";
         ctx.fillRect(0, 0, canvas.width, canvas.height);
       }
-      ctx.save();
-      ctx.lineJoin = "round";
-      ctx.shadowColor = "rgba(0, 0, 0, 0.4)";
-      ctx.shadowBlur = 6;
-      ctx.shadowOffsetY = 2;
-      ctx.restore();
+    }
+
+    function drawTowers() {
+      const towers = [
+        { sprite: loadedSprites.archer, x: 120, y: 360 },
+        { sprite: loadedSprites.mage, x: 620, y: 360 },
+      ];
+      towers.forEach(({ sprite, x, y }) => {
+        if (sprite && sprite.complete) {
+          ctx.drawImage(sprite, x - sprite.width / 2, y - sprite.height / 2);
+        }
+      });
+    }
+
+    function drawEnemies() {
+      const enemies = [
+        { sprite: loadedSprites.enemyGoblin, x: 180, y: 220 },
+        { sprite: loadedSprites.enemyOrc, x: 360, y: 180 },
+        { sprite: loadedSprites.enemyWraith, x: 520, y: 240 },
+      ];
+      enemies.forEach(({ sprite, x, y }) => {
+        if (sprite && sprite.complete) {
+          ctx.drawImage(sprite, x - sprite.width / 2, y - sprite.height / 2);
+        }
+      });
+    }
+
+    function render() {
+      drawBackground();
+      drawTowers();
+      drawEnemies();
+      requestAnimationFrame(render);
+    }
+
+    function startGame() {
+      gameStatus.textContent = "Ready";
+      gameStatus.style.background = "rgba(76, 175, 80, 0.14)";
+      gameStatus.style.color = "#c8e6c9";
+      render();
+    }
+
+    loadAllSprites()
+      .then(() => startGame())
+      .catch((error) => {
+        gameStatus.textContent = "Asset error";
+        gameStatus.style.background = "rgba(244, 67, 54, 0.14)";
+        gameStatus.style.color = "#ffcdd2";
+        console.error(error);
+      });
+  </script>
+</body>
+</html>
