@@ -73,12 +73,13 @@
     const gameStatus = document.getElementById("game-status");
 
     const spriteManifest = [
-      { key: "background", src: "assets/images/forest-bg.svg" },
+      { key: "background", src: "assets/images/map_mushroom_forest.svg" },
       { key: "archer", src: "assets/images/archer.svg" },
       { key: "mage", src: "assets/images/mage.svg" },
-      { key: "enemyGoblin", src: "assets/images/enemy-goblin.svg" },
-      { key: "enemyOrc", src: "assets/images/enemy-orc.svg" },
-      { key: "enemyWraith", src: "assets/images/enemy-wraith.svg" },
+      { key: "enemyGoblin", src: "assets/images/Goblin.svg" },
+      { key: "enemyOrc", src: "assets/images/Orc.svg" },
+      { key: "enemyTroll", src: "assets/images/Troll.svg" },
+      { key: "enemySonic", src: "assets/images/Sonic.svg" },
     ];
 
     const loadedSprites = {};
@@ -160,8 +161,9 @@
     function drawEnemies() {
       const enemies = [
         { sprite: loadedSprites.enemyGoblin, x: 180, y: 220 },
-        { sprite: loadedSprites.enemyOrc, x: 360, y: 180 },
-        { sprite: loadedSprites.enemyWraith, x: 520, y: 240 },
+        { sprite: loadedSprites.enemyOrc, x: 330, y: 180 },
+        { sprite: loadedSprites.enemyTroll, x: 480, y: 230 },
+        { sprite: loadedSprites.enemySonic, x: 610, y: 190 },
       ];
       enemies.forEach(({ sprite, x, y }) => {
         if (sprite && sprite.complete) {
