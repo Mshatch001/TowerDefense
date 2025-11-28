@@ -111,33 +111,68 @@
       return Promise.all(spriteManifest.map(loadSprite));
     }
 
+    // Background: scale to fit canvas while preserving aspect ratio
     function drawBackground() {
       const bg = loadedSprites.background;
       if (bg && bg.complete && bg.naturalWidth > 0) {
-        ctx.drawImage(bg, 0, 0, canvas.width, canvas.height);
+        const canvasAspect = canvas.width / canvas.height;
+        const imgAspect = bg.naturalWidth / bg.naturalHeight;
+
+        let drawWidth, drawHeight, offsetX, offsetY;
+        if (imgAspect > canvasAspect) {
+          // Image is wider than canvas
+          drawHeight = canvas.height;
+          drawWidth = bg.naturalWidth * (drawHeight / bg.naturalHeight);
+          offsetX = (canvas.width - drawWidth) / 2;
+          offsetY = 0;
+        } else {
+          // Image is taller than canvas
+          drawWidth = canvas.width;
+          drawHeight = bg.naturalHeight * (drawWidth / bg.naturalWidth);
+          offsetX = 0;
+          offsetY = (canvas.height - drawHeight) / 2;
+        }
+
+        ctx.drawImage(bg, offsetX, offsetY, drawWidth, drawHeight);
       } else {
         ctx.fillStyle = "#0f2d1e";
         ctx.fillRect(0, 0, canvas.width, canvas.height);
       }
     }
 
+    // Helper: draw any sprite at a normalized size
+    function drawSpriteNormalized(sprite, x, y, maxSize) {
+      if (!sprite || !sprite.complete || sprite.naturalWidth === 0) return;
+
+      const w = sprite.naturalWidth;
+      const h = sprite.naturalHeight;
+      const scale = maxSize / Math.max(w, h);
+
+      const drawWidth = w * scale;
+      const drawHeight = h * scale;
+
+      ctx.drawImage(
+        sprite,
+        x - drawWidth / 2,
+        y - drawHeight / 2,
+        drawWidth,
+        drawHeight
+      );
+    }
+
     function drawTowers() {
+      const TOWER_SIZE = 96; // target size in pixels
       const towers = [
         { sprite: loadedSprites.archer, x: 120, y: 360 },
         { sprite: loadedSprites.mage, x: 620, y: 360 },
       ];
       towers.forEach(({ sprite, x, y }) => {
-        if (sprite && sprite.complete && sprite.naturalWidth > 0) {
-          ctx.drawImage(
-            sprite,
-            x - sprite.naturalWidth / 2,
-            y - sprite.naturalHeight / 2
-          );
-        }
+        drawSpriteNormalized(sprite, x, y, TOWER_SIZE);
       });
     }
 
     function drawEnemies() {
+      const ENEMY_SIZE = 96; // target size in pixels
       const enemies = [
         { sprite: loadedSprites.enemyGoblin, x: 180, y: 220 },
         { sprite: loadedSprites.enemyOrc, x: 330, y: 180 },
@@ -145,17 +180,12 @@
         { sprite: loadedSprites.enemySonic, x: 610, y: 190 },
       ];
       enemies.forEach(({ sprite, x, y }) => {
-        if (sprite && sprite.complete && sprite.naturalWidth > 0) {
-          ctx.drawImage(
-            sprite,
-            x - sprite.naturalWidth / 2,
-            y - sprite.naturalHeight / 2
-          );
-        }
+        drawSpriteNormalized(sprite, x, y, ENEMY_SIZE);
       });
     }
 
     function render() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
       drawBackground();
       drawTowers();
       drawEnemies();
