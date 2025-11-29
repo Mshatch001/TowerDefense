@@ -1,0 +1,70 @@
+<!-- No background rectangle. Entire backdrop is transparent. -->
+<svg
+  width="256"
+  height="256"
+  viewBox="0 0 256 256"
+  xmlns="http://www.w3.org/2000/svg"
+>
+
+  <defs>
+    <!-- Fiery glow -->
+    <radialGradient id="fireGlowSimple" cx="50%" cy="50%" r="50%">
+      <stop offset="0%"  stop-color="#fff2cc" stop-opacity="0.9" />
+      <stop offset="40%" stop-color="#ff9a3c" stop-opacity="0.9" />
+      <stop offset="80%" stop-color="#ff3b1a" stop-opacity="0.55" />
+      <stop offset="100%" stop-color="#000000" stop-opacity="0" />
+    </radialGradient>
+
+    <!-- Outer ring gradient -->
+    <linearGradient id="ringFireSimple" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%"   stop-color="#ffe7a4" />
+      <stop offset="50%"  stop-color="#ff7a00" />
+      <stop offset="100%" stop-color="#b00000" />
+    </linearGradient>
+
+    <!-- Inner vortex -->
+    <radialGradient id="vortexSimple" cx="50%" cy="50%" r="50%">
+      <stop offset="0%"  stop-color="#1a0000" />
+      <stop offset="60%" stop-color="#000000" />
+      <stop offset="100%" stop-color="#000000" stop-opacity="0" />
+    </radialGradient>
+  </defs>
+
+  <!-- Portal graphics only. No container shape that fills the background. -->
+  <g transform="translate(128 128)">
+
+    <!-- Outer glow (soft edge, fades to transparent) -->
+    <circle r="90" fill="url(#fireGlowSimple)" opacity="0.75" />
+
+    <!-- Fiery outer ring -->
+    <g>
+      <circle
+        r="60"
+        fill="none"
+        stroke="url(#ringFireSimple)"
+        stroke-width="10"
+        stroke-linecap="round"
+        stroke-dasharray="22 10"
+      />
+      <circle
+        r="60"
+        fill="none"
+        stroke="#ffdd99"
+        stroke-width="4"
+        stroke-linecap="round"
+        stroke-dasharray="4 12"
+        opacity="0.9"
+      />
+    </g>
+
+    <!-- Inner dark vortex -->
+    <circle r="40" fill="url(#vortexSimple)" />
+
+    <!-- Bright core -->
+    <circle r="10" fill="#ffe7a4" />
+
+    <!-- Soft ground shadow (still transparent outside the ellipse) -->
+    <ellipse cx="0" cy="46" rx="40" ry="12" fill="#000" opacity="0.35" />
+
+  </g>
+</svg>
