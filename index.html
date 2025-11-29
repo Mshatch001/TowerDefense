@@ -186,7 +186,7 @@
     // --- Background Music Setup ---
     const bgMusic = new Audio("assets/audio/WhisperingGroves.mp3");
     bgMusic.loop = true;
-    bgMusic.volume = 0.5;   // adjust to taste (0.0 - 1.0)
+    bgMusic.volume = 0.5;
 
     let musicStarted = false;
 
@@ -205,25 +205,32 @@
       bgMusic.currentTime = 0;
     }
 
-    // --- Projectile Sound Effects (with subtle pitch variation) ---
+    // --- Projectile Sound Effects (with subtle pitch variation, reduced volumes) ---
     const arrowSfx = new Audio("assets/audio/arrowsound.mp3");
-    arrowSfx.volume = 1.0;   // louder
+    arrowSfx.volume = 0.55;
 
     const mageOrbSfx = new Audio("assets/audio/mageorbsound.mp3");
-    mageOrbSfx.volume = 0.4; // quieter
+    mageOrbSfx.volume = 0.30;
 
     const sonicSfx = new Audio("assets/audio/sonicsound.mp3");
-    sonicSfx.volume = 0.25;  // quietest
+    sonicSfx.volume = 0.20;
 
-    // --- Enemy death SFX ---
+    // --- Enemy death SFX (quieter) ---
     const goblinDamageSfx = new Audio("assets/audio/goblindamaged.mp3");
-    goblinDamageSfx.volume = 0.6;
+    goblinDamageSfx.volume = 0.45;
 
     const orcDamageSfx = new Audio("assets/audio/Orcdamaged.mp3");
-    orcDamageSfx.volume = 0.7;
+    orcDamageSfx.volume = 0.50;
 
     const trollDamageSfx = new Audio("assets/audio/Trolldamaged.mp3");
-    trollDamageSfx.volume = 0.75;
+    trollDamageSfx.volume = 0.55;
+
+    // --- Win / Loss Sounds ---
+    const victorySfx = new Audio("assets/audio/Victory.mp3");
+    victorySfx.volume = 0.7;
+
+    const defeatSfx = new Audio("assets/audio/Defeat.mp3");
+    defeatSfx.volume = 0.7;
 
     function playSfxWithVariation(audio, minRate, maxRate) {
       try {
@@ -238,15 +245,11 @@
     }
 
     function playEnemyDeathSfx(spriteKey) {
-      // Match by enemy sprite key
       if (spriteKey === "enemyGoblin") {
-        // Goblin: subtle ±5% pitch
         playSfxWithVariation(goblinDamageSfx, 0.95, 1.05);
       } else if (spriteKey === "enemyOrc") {
-        // Orc: slightly heavier, subtle ±6% pitch
         playSfxWithVariation(orcDamageSfx, 0.94, 1.06);
       } else if (spriteKey === "enemyTroll") {
-        // Troll: deep, subtle ±5% pitch
         playSfxWithVariation(trollDamageSfx, 0.95, 1.05);
       }
     }
@@ -302,7 +305,7 @@
     // GAME LOGIC
 
     const colors = {
-      path: "rgba(160, 120, 70, 0.55)",   // lighter, softer path
+      path: "rgba(160, 120, 70, 0.55)",
       grass: "#142010",
       arrowCore: "#C6FF7A",
       arrowTrail: "rgba(166,255,176,0.55)",
@@ -343,6 +346,9 @@
 
     let selectedTowerType = "arrow";
 
+    let gameWon = false;
+    let gameEnded = false;
+
     const towerButtons = document.querySelectorAll(".tower-button");
     towerButtons.forEach((btn) => {
       btn.addEventListener("click", () => {
@@ -358,8 +364,8 @@
     canvas.addEventListener("click", placeTowerFromClick);
 
     function placeTowerFromClick(event) {
-      // Block tower placement after game over
-      if (lives <= 0) {
+      // Block tower placement after game over or victory
+      if (lives <= 0 || gameEnded) {
         log("The game is over. Refresh the page to play again.");
         return;
       }
@@ -493,6 +499,8 @@
     }
 
     function update(dt) {
+      if (gameEnded) return;
+
       if (enemiesToSpawn > 0) {
         spawnTimer += dt * 1000;
         if (spawnTimer >= spawnInterval) {
@@ -501,6 +509,18 @@
           enemiesToSpawn -= 1;
         }
       } else if (enemies.length === 0) {
+
+        // Victory condition: all enemies cleared on Wave 10
+        if (wave >= 10) {
+          log("You have vanquished the final wave!");
+          stopMusic();
+          victorySfx.play().catch(()=>{});
+          gameWon = true;
+          gameEnded = true;
+          return;
+        }
+
+        // Next wave
         wave += 1;
         waveValue.textContent = wave;
         enemiesToSpawn = 5 + wave * 2;
@@ -516,16 +536,18 @@
           lives -= 1;
           livesValue.textContent = lives;
           log("An enemy reached the crystal. Lives left: " + lives);
-          if (lives <= 0) {
+          if (lives <= 0 && !gameEnded) {
             log("The crystal has fallen. Game over.");
             stopMusic();
+            defeatSfx.play().catch(()=>{});
+            gameEnded = true;
           }
         }
       }
 
       towers.forEach((t) => {
         t.cooldown -= dt * 1000;
-        if (t.cooldown <= 0 && enemies.length > 0 && lives > 0) {
+        if (t.cooldown <= 0 && enemies.length > 0 && lives > 0 && !gameEnded) {
           const target = findTargetForTower(t);
           if (target) {
             fireAtTarget(t, target);
@@ -618,13 +640,10 @@
 
       // Play tower-specific projectile sound with subtle pitch variation
       if (tower.type === "mage") {
-        // Mage: subtle ±5% pitch
         playSfxWithVariation(mageOrbSfx, 0.95, 1.05);
       } else if (tower.type === "sonic") {
-        // Sonic: subtle but slightly wider ±10% pitch
         playSfxWithVariation(sonicSfx, 0.90, 1.10);
       } else {
-        // Archer (default): subtle ±8% pitch
         playSfxWithVariation(arrowSfx, 0.92, 1.08);
       }
 
@@ -853,6 +872,24 @@
       ctx.restore();
     }
 
+    function drawVictoryOverlay() {
+      ctx.save();
+      ctx.fillStyle = "rgba(0, 0, 0, 0.7)";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      ctx.fillStyle = "#d0ffb3";
+      ctx.textAlign = "center";
+
+      ctx.font = "bold 42px system-ui";
+      ctx.fillText("Victory!", canvas.width / 2, canvas.height / 2 - 20);
+
+      ctx.font = "18px system-ui";
+      ctx.fillText("You have defeated all 10 waves.", canvas.width / 2, canvas.height / 2 + 10);
+      ctx.fillText("Refresh the page to play again.", canvas.width / 2, canvas.height / 2 + 40);
+
+      ctx.restore();
+    }
+
     function draw(timestamp) {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       drawBackground();
@@ -860,7 +897,9 @@
       drawEnemies();
       drawProjectiles();
 
-      if (lives <= 0) {
+      if (gameWon) {
+        drawVictoryOverlay();
+      } else if (lives <= 0) {
         drawGameOverOverlay();
       }
     }
@@ -869,7 +908,7 @@
       const dt = (timestamp - lastFrameTime) / 1000;
       lastFrameTime = timestamp;
 
-      if (lives > 0) {
+      if (!gameEnded && lives > 0) {
         update(dt);
       }
       draw(timestamp);
