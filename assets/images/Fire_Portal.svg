@@ -1,4 +1,4 @@
-<!-- No background rectangle. Entire backdrop is transparent. -->
+<!-- Animated fel-style dark portal, transparent background -->
 <svg
   width="256"
   height="256"
@@ -7,64 +7,191 @@
 >
 
   <defs>
-    <!-- Fiery glow -->
-    <radialGradient id="fireGlowSimple" cx="50%" cy="50%" r="50%">
-      <stop offset="0%"  stop-color="#fff2cc" stop-opacity="0.9" />
-      <stop offset="40%" stop-color="#ff9a3c" stop-opacity="0.9" />
-      <stop offset="80%" stop-color="#ff3b1a" stop-opacity="0.55" />
-      <stop offset="100%" stop-color="#000000" stop-opacity="0" />
+    <!-- Outer fel glow -->
+    <radialGradient id="felGlow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%"  stop-color="#d4ffb5" stop-opacity="0.6" />
+      <stop offset="40%" stop-color="#71ff4e" stop-opacity="0.8" />
+      <stop offset="80%" stop-color="#12a12f" stop-opacity="0.5" />
+      <stop offset="100%" stop-color="#02030a" stop-opacity="0" />
     </radialGradient>
 
-    <!-- Outer ring gradient -->
-    <linearGradient id="ringFireSimple" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%"   stop-color="#ffe7a4" />
-      <stop offset="50%"  stop-color="#ff7a00" />
-      <stop offset="100%" stop-color="#b00000" />
+    <!-- Stone ring gradient -->
+    <linearGradient id="stoneRing" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%"   stop-color="#2a2638" />
+      <stop offset="50%"  stop-color="#181423" />
+      <stop offset="100%" stop-color="#090612" />
     </linearGradient>
 
-    <!-- Inner vortex -->
-    <radialGradient id="vortexSimple" cx="50%" cy="50%" r="50%">
-      <stop offset="0%"  stop-color="#1a0000" />
-      <stop offset="60%" stop-color="#000000" />
-      <stop offset="100%" stop-color="#000000" stop-opacity="0" />
+    <!-- Stone edge highlight -->
+    <linearGradient id="stoneEdge" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%"   stop-color="#6e6b8c" />
+      <stop offset="50%"  stop-color="#403a63" />
+      <stop offset="100%" stop-color="#151021" />
+    </linearGradient>
+
+    <!-- Inner fel vortex -->
+    <radialGradient id="felVortex" cx="50%" cy="50%" r="50%">
+      <stop offset="0%"  stop-color="#e3ffb8" />
+      <stop offset="20%" stop-color="#a9ff61" />
+      <stop offset="55%" stop-color="#34cc34" />
+      <stop offset="85%" stop-color="#0b4e1d" />
+      <stop offset="100%" stop-color="#020b08" stop-opacity="0" />
     </radialGradient>
   </defs>
 
-  <!-- Portal graphics only. No container shape that fills the background. -->
+  <!-- Center portal at (128,128) -->
   <g transform="translate(128 128)">
 
-    <!-- Outer glow (soft edge, fades to transparent) -->
-    <circle r="90" fill="url(#fireGlowSimple)" opacity="0.75" />
-
-    <!-- Fiery outer ring -->
-    <g>
-      <circle
-        r="60"
-        fill="none"
-        stroke="url(#ringFireSimple)"
-        stroke-width="10"
-        stroke-linecap="round"
-        stroke-dasharray="22 10"
+    <!-- Pulsing outer fel glow -->
+    <circle r="100" fill="url(#felGlow)" opacity="0.7">
+      <animate
+        attributeName="opacity"
+        values="0.4;0.85;0.4"
+        dur="2.4s"
+        repeatCount="indefinite"
       />
-      <circle
-        r="60"
-        fill="none"
-        stroke="#ffdd99"
-        stroke-width="4"
-        stroke-linecap="round"
-        stroke-dasharray="4 12"
-        opacity="0.9"
+    </circle>
+
+    <!-- Stone ring base -->
+    <circle
+      r="70"
+      fill="url(#stoneRing)"
+      stroke="url(#stoneEdge)"
+      stroke-width="10"
+    />
+
+    <!-- Carved stone segments (static) -->
+    <g stroke="#312b4a" stroke-width="4" stroke-linecap="round" opacity="0.9">
+      <!-- Cross segments -->
+      <line x1="-70" y1="0" x2="-50" y2="0" />
+      <line x1="50"  y1="0" x2="70"  y2="0" />
+      <line x1="0"   y1="-70" x2="0"   y2="-50" />
+      <line x1="0"   y1="50"  x2="0"   y2="70" />
+      <!-- Diagonal cracks -->
+      <line x1="-48" y1="-48" x2="-32" y2="-32" />
+      <line x1="32"  y1="-32" x2="48"  y2="-48" />
+      <line x1="-48" y1="48"  x2="-32" y2="32" />
+      <line x1="32"  y1="32"  x2="48"  y2="48" />
+    </g>
+
+    <!-- Rotating inner fel vortex group -->
+    <g>
+      <!-- Inner fel disk -->
+      <circle r="48" fill="url(#felVortex)" />
+
+      <!-- Swirl lines -->
+      <g fill="none" stroke-linecap="round">
+        <path
+          d="
+            M -32 -10
+            C -10 -22, 10 -20, 30 -10
+            C 46  -2, 32  12, 10  18
+            C -6  22, -22 18, -30 10
+          "
+          stroke="#baff7a"
+          stroke-width="3"
+          opacity="0.9"
+        />
+        <path
+          d="
+            M -26 -24
+            C  -6 -32, 14 -28, 30 -18
+            C 42 -10, 28   4,  8  12
+            C  -4  18, -18 16, -26 10
+          "
+          stroke="#6cff47"
+          stroke-width="2.5"
+          opacity="0.8"
+        />
+        <path
+          d="
+            M -18 22
+            C  -4 16,  8 16, 20 22
+          "
+          stroke="#2be03a"
+          stroke-width="2"
+          opacity="0.8"
+        />
+      </g>
+
+      <!-- Rotate the whole vortex group slowly -->
+      <animateTransform
+        attributeName="transform"
+        type="rotate"
+        from="0 0 0"
+        to="360 0 0"
+        dur="10s"
+        repeatCount="indefinite"
       />
     </g>
 
-    <!-- Inner dark vortex -->
-    <circle r="40" fill="url(#vortexSimple)" />
+    <!-- Flickering core -->
+    <circle r="10" fill="#eaffc2">
+      <animate
+        attributeName="r"
+        values="8;11;8"
+        dur="1.3s"
+        repeatCount="indefinite"
+      />
+      <animate
+        attributeName="fill"
+        values="#eaffc2;#ffffff;#eaffc2"
+        dur="1.3s"
+        repeatCount="indefinite"
+      />
+    </circle>
 
-    <!-- Bright core -->
-    <circle r="10" fill="#ffe7a4" />
+    <!-- Corrupted runes around inner edge (slight flicker) -->
+    <g
+      font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
+      font-size="10"
+      fill="#c7ff9c"
+      text-anchor="middle"
+      dominant-baseline="middle"
+    >
+      <text x="0"   y="-56" opacity="0.9">
+        ᛞ
+        <animate attributeName="opacity" values="0.6;1;0.6" dur="2s" repeatCount="indefinite" />
+      </text>
+      <text x="30"  y="-46" opacity="0.85">
+        ᚾ
+        <animate attributeName="opacity" values="0.5;0.95;0.5" dur="2.1s" repeatCount="indefinite" />
+      </text>
+      <text x="52"  y="0" opacity="0.9">
+        ᛗ
+        <animate attributeName="opacity" values="0.7;1;0.7" dur="1.8s" repeatCount="indefinite" />
+      </text>
+      <text x="30"  y="46" opacity="0.85">
+        ᚱ
+        <animate attributeName="opacity" values="0.5;0.95;0.5" dur="2.3s" repeatCount="indefinite" />
+      </text>
+      <text x="0"   y="56" opacity="0.9">
+        ᛟ
+        <animate attributeName="opacity" values="0.6;1;0.6" dur="2.4s" repeatCount="indefinite" />
+      </text>
+      <text x="-30" y="46" opacity="0.85">
+        ᚹ
+        <animate attributeName="opacity" values="0.5;0.95;0.5" dur="1.9s" repeatCount="indefinite" />
+      </text>
+      <text x="-52" y="0" opacity="0.9">
+        ᚦ
+        <animate attributeName="opacity" values="0.6;1;0.6" dur="2.2s" repeatCount="indefinite" />
+      </text>
+      <text x="-30" y="-46" opacity="0.85">
+        ᚲ
+        <animate attributeName="opacity" values="0.5;0.95;0.5" dur="2.05s" repeatCount="indefinite" />
+      </text>
+    </g>
 
-    <!-- Soft ground shadow (still transparent outside the ellipse) -->
-    <ellipse cx="0" cy="46" rx="40" ry="12" fill="#000" opacity="0.35" />
+    <!-- Ground shadow so it sits on the path -->
+    <ellipse cx="0" cy="52" rx="44" ry="14" fill="#000000" opacity="0.4">
+      <animate
+        attributeName="opacity"
+        values="0.25;0.45;0.25"
+        dur="2.8s"
+        repeatCount="indefinite"
+      />
+    </ellipse>
 
   </g>
 </svg>
