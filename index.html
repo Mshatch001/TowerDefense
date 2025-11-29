@@ -215,6 +215,16 @@
     const sonicSfx = new Audio("assets/audio/sonicsound.mp3");
     sonicSfx.volume = 0.25;  // quietest
 
+    // --- Enemy death SFX ---
+    const goblinDamageSfx = new Audio("assets/audio/goblindamaged.mp3");
+    goblinDamageSfx.volume = 0.6;
+
+    const orcDamageSfx = new Audio("assets/audio/Orcdamaged.mp3");
+    orcDamageSfx.volume = 0.7;
+
+    const trollDamageSfx = new Audio("assets/audio/Trolldamaged.mp3");
+    trollDamageSfx.volume = 0.75;
+
     function playSfxWithVariation(audio, minRate, maxRate) {
       try {
         const rate = minRate + Math.random() * (maxRate - minRate);
@@ -224,6 +234,20 @@
         audio.play().catch(() => {});
       } catch (e) {
         // Ignore audio errors
+      }
+    }
+
+    function playEnemyDeathSfx(spriteKey) {
+      // Match by enemy sprite key
+      if (spriteKey === "enemyGoblin") {
+        // Goblin: subtle ±5% pitch
+        playSfxWithVariation(goblinDamageSfx, 0.95, 1.05);
+      } else if (spriteKey === "enemyOrc") {
+        // Orc: slightly heavier, subtle ±6% pitch
+        playSfxWithVariation(orcDamageSfx, 0.94, 1.06);
+      } else if (spriteKey === "enemyTroll") {
+        // Troll: deep, subtle ±5% pitch
+        playSfxWithVariation(trollDamageSfx, 0.95, 1.05);
       }
     }
 
@@ -523,6 +547,9 @@
 
             p.target.hp -= p.damage;
             if (p.target.hp <= 0) {
+              // Play enemy-specific death SFX
+              playEnemyDeathSfx(p.target.spriteKey);
+
               const idx = enemies.indexOf(p.target);
               if (idx >= 0) {
                 enemies.splice(idx, 1);
