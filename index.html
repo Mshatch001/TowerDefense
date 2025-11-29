@@ -34,11 +34,28 @@
       letter-spacing: 0.04em;
       text-align: center;
     }
+
+    /* Canvas wrapped so we can overlay the animated portal */
+    .canvas-wrapper {
+      position: relative;
+      display: inline-block;
+    }
+
     #gameCanvas {
       background: #0f2d1e;
       border-radius: 12px;
       display: block;
     }
+
+    /* Animated Fire Portal overlay */
+    #firePortalAnimated {
+      position: absolute;
+      width: 80px;      /* 2 × GRID_SIZE (40) */
+      height: 80px;     /* adjust if you prefer aspect-driven scaling */
+      pointer-events: none;   /* clicks go through to canvas */
+      transform: translate(-50%, -50%); /* center on x/y */
+    }
+
     .status {
       margin-top: 8px;
       display: flex;
@@ -113,7 +130,17 @@
 <body>
   <div class="frame">
     <h1>Arcane Forest Defense</h1>
-    <canvas id="gameCanvas" width="800" height="540" aria-label="Tower defense canvas"></canvas>
+
+    <div class="canvas-wrapper">
+      <canvas id="gameCanvas" width="800" height="540" aria-label="Tower defense canvas"></canvas>
+      <!-- Animated Fire Portal overlay -->
+      <img
+        id="firePortalAnimated"
+        src="assets/images/Fire_Portal.svg"
+        alt="Fire Portal"
+      />
+    </div>
+
     <div class="status">
       <span id="asset-counter">Loading assets 0/0…</span>
       <span id="game-status" class="pill">Preparing</span>
@@ -154,6 +181,8 @@
     const enemiesValue = document.getElementById("enemiesValue");
     const logDiv = document.getElementById("log");
 
+    const portalImg = document.getElementById("firePortalAnimated");
+
     function log(message) {
       const div = document.createElement("div");
       const time = new Date().toLocaleTimeString();
@@ -170,7 +199,6 @@
       { key: "enemyOrc",    src: "assets/images/Orc.svg" },
       { key: "enemyTroll",  src: "assets/images/Troll.svg" },
       { key: "sonicTower",  src: "assets/images/Sonic.svg" },
-      { key: "firePortal",  src: "assets/images/Fire_Portal.svg" },
       { key: "magicCrystal",src: "assets/images/MagicCrystal.svg" }
     ];
 
@@ -553,12 +581,6 @@
       }
       ctx.stroke();
 
-      // spawn portal
-      const portalSprite = loadedSprites.firePortal;
-      if (portalSprite && portalSprite.complete) {
-        drawSpriteNormalized(portalSprite, path[0].x, path[0].y, GRID_SIZE * 2);
-      }
-
       // goal magic crystal with glow
       const crystalSprite = loadedSprites.magicCrystal;
       if (crystalSprite && crystalSprite.complete) {
@@ -568,7 +590,6 @@
         drawSpriteNormalized(crystalSprite, goal.x, goal.y, GRID_SIZE * 2.2);
         ctx.restore();
       } else {
-        // fallback if sprite missing
         ctx.save();
         ctx.shadowColor = colors.crystalGlow;
         ctx.shadowBlur = 24;
@@ -760,6 +781,13 @@
         log("Welcome, Wardens of the Arcane Forest.");
         log("Archer, Mage, and Sonic Towers are ready to be placed.");
         log("Enemies emerge from the fire portal and seek the magic crystal.");
+
+        // Position the animated fire portal at the spawn point
+        const spawn = path[0];
+        if (portalImg) {
+          portalImg.style.left = `${spawn.x}px`;
+          portalImg.style.top  = `${spawn.y}px`;
+        }
 
         lastFrameTime = performance.now();
         requestAnimationFrame(gameLoop);
