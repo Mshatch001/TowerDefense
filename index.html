@@ -56,7 +56,6 @@
       font-weight: 600;
     }
 
-    /* HUD / stats below the status row */
     .hud {
       margin-top: 12px;
       font-size: 13px;
@@ -131,10 +130,12 @@
         <span class="label">Towers:</span>
         <button class="tower-button selected" data-tower-type="arrow">Archer Tower (25g)</button>
         <button class="tower-button" data-tower-type="mage">Mage Tower (40g)</button>
+        <button class="tower-button" data-tower-type="sonic">Sonic Tower (60g)</button>
       </div>
       <div class="instructions">
         • Click on the map near the path to place towers.<br />
         • Archer Towers fire fast enchanted arrows; Mage Towers fire slower, stronger bolts.<br />
+        • Sonic Towers emit stunning shockwaves that briefly stop enemies.<br />
         • Defend the crystal at the end of the path from the marching enemies.
       </div>
       <div id="log"></div>
@@ -168,7 +169,7 @@
       { key: "enemyGoblin", src: "assets/images/Goblin.svg" },
       { key: "enemyOrc", src: "assets/images/Orc.svg" },
       { key: "enemyTroll", src: "assets/images/Troll.svg" },
-      { key: "enemySonic", src: "assets/images/Sonic.svg" },
+      { key: "sonicTower", src: "assets/images/Sonic.svg" }  // Sonic tower only
     ];
 
     const loadedSprites = {};
@@ -200,12 +201,11 @@
       return Promise.all(spriteManifest.map(loadSprite));
     }
 
-    // GAME LOGIC (from working version, adapted to use sprites)
+    // GAME LOGIC
 
     const colors = {
-      path: "#51361f",
+      path: "rgba(160, 120, 70, 0.55)",   // lighter, softer path
       grass: "#142010",
-      // projectiles & effects from original
       arrowCore: "#C6FF7A",
       arrowTrail: "rgba(166,255,176,0.55)",
       magicCore: "#FFFFFF",
@@ -213,7 +213,7 @@
       magicOuter: "rgba(132,243,255,0.8)",
       magicTrail: "rgba(180,124,255,0.7)",
       crystal: "#6df7ff",
-      crystalGlow: "rgba(109,247,255,0.4)",
+      crystalGlow: "rgba(109,247,255,0.4)"
     };
 
     const GRID_SIZE = 40;
@@ -226,7 +226,7 @@
       { x: 6.5 * GRID_SIZE, y: 2.5 * GRID_SIZE },
       { x: 12.5 * GRID_SIZE, y: 2.5 * GRID_SIZE },
       { x: 12.5 * GRID_SIZE, y: 10.5 * GRID_SIZE },
-      { x: 18.5 * GRID_SIZE, y: 10.5 * GRID_SIZE },
+      { x: 18.5 * GRID_SIZE, y: 10.5 * GRID_SIZE }
     ];
     const goal = path[path.length - 1];
 
@@ -296,6 +296,7 @@
         cooldown: 0,
         projectileSpeed: cfg.projectileSpeed,
         damage: cfg.damage,
+        effect: cfg.effect || null
       });
 
       log("Built " + cfg.name + " at (" + gridX + ", " + gridY + ").");
@@ -334,18 +335,32 @@
           name: "Mage Tower",
           cost: 40,
           range: 150,
-          fireRate: 900,
+          fireRate: 900,        // ms
           projectileSpeed: 260,
-          damage: 3,
+          damage: 3
         };
       }
+
+      if (type === "sonic") {
+        return {
+          name: "Sonic Tower",
+          cost: 60,
+          range: 180,
+          fireRate: 650,        // fairly quick
+          projectileSpeed: 500, // very fast
+          damage: 1,            // low direct damage
+          effect: "stun"        // applies stun
+        };
+      }
+
+      // default archer
       return {
         name: "Archer Tower",
         cost: 25,
         range: 130,
         fireRate: 450,
         projectileSpeed: 360,
-        damage: 1,
+        damage: 1
       };
     }
 
@@ -353,8 +368,8 @@
       const baseHp = 5 + wave * 1.5;
       const speed = 45 + wave * 3;
 
-      // Pick a sprite for this enemy
-      const enemyKeys = ["enemyGoblin", "enemyOrc", "enemyTroll", "enemySonic"];
+      // Only the three enemy types, Sonic is tower-only
+      const enemyKeys = ["enemyGoblin", "enemyOrc", "enemyTroll"];
       const spriteKey = enemyKeys[Math.floor(Math.random() * enemyKeys.length)];
 
       enemies.push({
@@ -365,6 +380,7 @@
         hp: baseHp,
         maxHp: baseHp,
         spriteKey,
+        stunnedUntil: 0
       });
     }
 
@@ -416,6 +432,12 @@
         const step = p.speed * dt;
         if (dist <= step || dist === 0) {
           if (p.target && enemies.includes(p.target)) {
+            // Sonic stun effect
+            if (p.effect === "stun") {
+              p.target.stunnedUntil = Date.now() + 600; // 600ms stun
+            }
+
+            // Apply damage
             p.target.hp -= p.damage;
             if (p.target.hp <= 0) {
               const idx = enemies.indexOf(p.target);
@@ -439,6 +461,11 @@
     }
 
     function moveEnemy(e, dt) {
+      const now = Date.now();
+      if (e.stunnedUntil && now < e.stunnedUntil) {
+        return; // stunned, do not move
+      }
+
       if (e.waypointIndex >= path.length - 1) return;
       const target = path[e.waypointIndex + 1];
       const dx = target.x - e.x;
@@ -487,10 +514,11 @@
         speed: tower.projectileSpeed,
         damage: tower.damage,
         kind: tower.type,
+        effect: tower.effect || null
       });
     }
 
-    // DRAWING WITH SPRITES
+    // DRAWING
 
     function drawBackground() {
       const bg = loadedSprites.background;
@@ -516,8 +544,8 @@
         ctx.fillRect(0, 0, canvas.width, canvas.height);
       }
 
-      // Overlay the path
-      ctx.lineWidth = GRID_SIZE * 0.9;
+      // path overlay
+      ctx.lineWidth = GRID_SIZE * 0.65;
       ctx.strokeStyle = colors.path;
       ctx.lineCap = "round";
       ctx.beginPath();
@@ -527,7 +555,7 @@
       }
       ctx.stroke();
 
-      // Goal crystal
+      // goal crystal
       ctx.save();
       ctx.shadowColor = colors.crystalGlow;
       ctx.shadowBlur = 24;
@@ -557,6 +585,7 @@
     function drawTowers(time) {
       const TOWER_SIZE = GRID_SIZE * 1.4;
       towers.forEach((t) => {
+        // range ring
         ctx.beginPath();
         ctx.strokeStyle = "rgba(255,255,255,0.06)";
         ctx.lineWidth = 1;
@@ -565,6 +594,8 @@
 
         if (t.type === "mage") {
           drawSpriteNormalized(loadedSprites.mage, t.x, t.y, TOWER_SIZE);
+        } else if (t.type === "sonic") {
+          drawSpriteNormalized(loadedSprites.sonicTower, t.x, t.y, TOWER_SIZE);
         } else {
           drawSpriteNormalized(loadedSprites.archer, t.x, t.y, TOWER_SIZE);
         }
@@ -578,7 +609,6 @@
           loadedSprites[e.spriteKey] || loadedSprites.enemyGoblin || null;
         drawSpriteNormalized(sprite, e.x, e.y, ENEMY_SIZE);
 
-        // Health bar
         const barWidth = GRID_SIZE * 0.7;
         const barHeight = 5;
         const hpRatio = e.hp / e.maxHp;
@@ -623,7 +653,22 @@
           ctx.moveTo(p.x, p.y);
           ctx.lineTo(p.x - ux * trailLength, p.y - uy * trailLength);
           ctx.stroke();
+        } else if (p.kind === "sonic") {
+          // Sonic shockwave: expanding ring
+          const radius = 8;
+          ctx.strokeStyle = "rgba(173, 216, 255, 0.9)";
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, radius, 0, Math.PI * 2);
+          ctx.stroke();
+
+          ctx.strokeStyle = "rgba(173, 216, 255, 0.4)";
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, radius + 4, 0, Math.PI * 2);
+          ctx.stroke();
         } else {
+          // archer
           const dx = p.tx - p.x;
           const dy = p.ty - p.y;
           const dist = Math.hypot(dx, dy) || 1;
@@ -684,7 +729,6 @@
       requestAnimationFrame(gameLoop);
     }
 
-    // Polyfill for roundRect if ever needed
     if (!CanvasRenderingContext2D.prototype.roundRect) {
       CanvasRenderingContext2D.prototype.roundRect = function (x, y, w, h, r) {
         if (w < 2 * r) r = w / 2;
@@ -700,7 +744,6 @@
       };
     }
 
-    // STARTUP: wait for assets, then start the game loop
     loadAllSprites()
       .then(() => {
         gameStatus.textContent = "Ready";
@@ -708,7 +751,7 @@
         gameStatus.style.color = "#c8e6c9";
 
         log("Welcome, Wardens of the Arcane Forest.");
-        log("Archer and Mage Towers are ready to be placed.");
+        log("Archer, Mage, and Sonic Towers are ready to be placed.");
         log("Place towers to defend the crystal against enemy waves.");
 
         lastFrameTime = performance.now();
