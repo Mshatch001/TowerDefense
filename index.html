@@ -171,6 +171,48 @@
       color: #110617;
       border-color: #8e6bff;
     }
+    .hero-selection-group {
+      margin-top: 10px;
+      padding-top: 10px;
+      border-top: 1px solid #22313b;
+    }
+    .hero-button {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 12px;
+      margin: 4px 4px 0 0;
+      border-radius: 6px;
+      border: 1px solid rgba(77, 208, 225, 0.4);
+      background: #10232e;
+      color: #d6f2ff;
+      cursor: pointer;
+      font-size: 13px;
+      transition: background 0.2s, border-color 0.2s;
+    }
+    .hero-button:hover {
+      background: #133043;
+      border-color: rgba(77, 208, 225, 0.7);
+    }
+    .hero-button:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+    .hero-badge {
+      padding: 2px 8px;
+      border-radius: 999px;
+      background: rgba(77, 208, 225, 0.14);
+      border: 1px solid rgba(77, 208, 225, 0.35);
+      font-weight: 700;
+      font-size: 11px;
+      color: #baf7ff;
+    }
+    .hero-info {
+      font-size: 12px;
+      line-height: 1.5;
+      color: #c7e1ef;
+      margin-top: 8px;
+    }
     .instructions {
       margin-top: 4px;
       line-height: 1.4;
@@ -287,6 +329,26 @@
             • <strong>Archer:</strong> Fast fire rate, low damage.<br />
             • <strong>Mage:</strong> Slower fire rate, high damage.<br />
             • <strong>Sonic:</strong> Low damage, applies a brief <strong>stun</strong> effect.<br />
+          </div>
+
+          <div class="hero-selection-group">
+            <div class="hud-row" style="border: none; padding: 0; margin-bottom: 6px;">
+              <span class="label">Heroes:</span>
+              <span class="pill">Summon at the crystal</span>
+            </div>
+            <button class="hero-button" id="summonGuardian">
+              <span class="hero-badge">Guardian</span>
+              <span>Send the brave guardian (80g)</span>
+            </button>
+            <button class="hero-button" id="summonMage">
+              <span class="hero-badge">Mage</span>
+              <span>Send the fire mage (90g)</span>
+            </button>
+            <div class="hero-info">
+              • Heroes walk the monster path in reverse to meet the enemies.<br />
+              • They have hearty health but will retreat when exhausted.<br />
+              • Guardian is melee; Mage launches long-range fireballs.
+            </div>
           </div>
         </div>
 
@@ -455,6 +517,8 @@
       { key: "background",  src: "assets/images/map_mushroom_forest.svg" },
       { key: "archer",      src: "assets/images/archer.svg" },
       { key: "mage",        src: "assets/images/mage.svg" },
+      { key: "heroGuardian", src: "assets/images/Hero_Guardian.png" },
+      { key: "heroMage",     src: "assets/images/Hero_Mage.png" },
       { key: "enemyGoblin", src: "assets/images/Goblin.svg" },
       { key: "enemyOrc",    src: "assets/images/Orc.svg" },
       { key: "enemyTroll",  src: "assets/images/Troll.svg" },
@@ -498,7 +562,11 @@
       magicCore: "#FFFFFF",
       magicInner: "#B47CFF",
       magicOuter: "rgba(132,243,255,0.8)",
-      magicTrail: "rgba(180,124,255,0.7)"
+      magicTrail: "rgba(180,124,255,0.7)",
+      fireballCore: "#ffebc7",
+      fireballInner: "#ffb347",
+      fireballOuter: "rgba(255, 94, 58, 0.85)",
+      fireballTrail: "rgba(255, 181, 94, 0.65)"
     };
 
     const GRID_SIZE = 40; // 1280 / 32
@@ -533,6 +601,32 @@
     let towers = [];
     let enemies = [];
     let projectiles = [];
+    let hero = null;
+
+    const heroConfigs = {
+      guardian: {
+        name: "Guardian Hero",
+        cost: 80,
+        speed: 75,
+        hp: 120,
+        damage: 5,
+        range: 70,
+        attackRate: 650,
+        enemyDamagePerSecond: 3,
+        spriteKey: "heroGuardian"
+      },
+      mage: {
+        name: "Mage Hero",
+        cost: 90,
+        speed: 85,
+        hp: 100,
+        damage: 6,
+        range: 180,
+        attackRate: 750,
+        enemyDamagePerSecond: 2.5,
+        spriteKey: "heroMage"
+      }
+    };
 
     let spawnTimer = 0;
     let spawnInterval = 1400;
@@ -545,6 +639,8 @@
     let gameEnded = false;
 
     const towerButtons = document.querySelectorAll(".tower-button");
+    const summonGuardianBtn = document.getElementById("summonGuardian");
+    const summonMageBtn = document.getElementById("summonMage");
     towerButtons.forEach((btn) => {
       btn.addEventListener("click", () => {
         towerButtons.forEach((b) => b.classList.remove("selected"));
@@ -553,6 +649,21 @@
         tryStartMusic();
       });
     });
+
+    summonGuardianBtn?.addEventListener("click", () => summonHero("guardian"));
+    summonMageBtn?.addEventListener("click", () => summonHero("mage"));
+
+    function updateHeroButtons() {
+      const active = !!hero;
+      if (summonGuardianBtn) {
+        const cfg = heroConfigs.guardian;
+        summonGuardianBtn.disabled = active || gold < cfg.cost;
+      }
+      if (summonMageBtn) {
+        const cfg = heroConfigs.mage;
+        summonMageBtn.disabled = active || gold < cfg.cost;
+      }
+    }
 
     canvas.addEventListener("click", placeTowerFromClick);
 
@@ -590,6 +701,7 @@
 
       gold -= cfg.cost;
       goldValue.textContent = gold;
+      updateHeroButtons();
 
       towers.push({
         type: selectedTowerType,
@@ -774,6 +886,7 @@
                 const reward = 3 + Math.floor(wave / 2);
                 gold += reward;
                 goldValue.textContent = gold;
+                updateHeroButtons();
                 log("Enemy defeated. +" + reward + " gold.");
               }
             }
@@ -785,7 +898,106 @@
         }
       }
 
+      updateHero(dt);
       enemiesValue.textContent = enemies.length + enemiesToSpawn;
+    }
+
+    function findNearestEnemyToPoint(px, py) {
+      let nearest = null;
+      let bestDist = Infinity;
+      enemies.forEach((e) => {
+        const dx = e.x - px;
+        const dy = e.y - py;
+        const dist = Math.hypot(dx, dy);
+        if (dist < bestDist) {
+          bestDist = dist;
+          nearest = e;
+        }
+      });
+      return { target: nearest, distance: bestDist };
+    }
+
+    function updateHero(dt) {
+      if (!hero) return;
+
+      hero.cooldown -= dt * 1000;
+
+      const { target, distance } = findNearestEnemyToPoint(hero.x, hero.y);
+
+      if (target) {
+        // Enemies nearby will chip away at the hero over time
+        enemies.forEach((e) => {
+          const threatDist = Math.hypot(e.x - hero.x, e.y - hero.y);
+          if (threatDist < hero.range + 40) {
+            hero.hp -= hero.enemyDamagePerSecond * dt;
+          }
+        });
+
+        if (distance > hero.range * 0.9) {
+          movePointTowards(hero, target.x, target.y, hero.speed * dt);
+        } else if (hero.cooldown <= 0) {
+          if (hero.type === "mage") {
+            projectiles.push({
+              x: hero.x,
+              y: hero.y,
+              tx: target.x,
+              ty: target.y,
+              target,
+              speed: 320,
+              damage: hero.damage,
+              kind: "heroFireball"
+            });
+          } else {
+            target.hp -= hero.damage;
+            if (target.hp <= 0) {
+              playEnemyDeathSfx(target.spriteKey);
+              const idx = enemies.indexOf(target);
+              if (idx >= 0) {
+                enemies.splice(idx, 1);
+                const reward = 5 + Math.floor(wave / 2);
+                gold += reward;
+                goldValue.textContent = gold;
+                updateHeroButtons();
+                log(hero.name + " defeated an enemy! +" + reward + " gold.");
+              }
+            }
+          }
+          hero.cooldown = hero.attackRate;
+        }
+      } else {
+        advanceHeroAlongPath(dt);
+      }
+
+      if (hero.hp <= 0) {
+        log(hero.name + " is too tired and vanishes in a puff of sparkles.");
+        hero = null;
+        updateHeroButtons();
+      }
+    }
+
+    function movePointTowards(obj, tx, ty, step) {
+      const dx = tx - obj.x;
+      const dy = ty - obj.y;
+      const dist = Math.hypot(dx, dy);
+      if (dist <= step || dist === 0) {
+        obj.x = tx;
+        obj.y = ty;
+      } else {
+        obj.x += (dx / dist) * step;
+        obj.y += (dy / dist) * step;
+      }
+    }
+
+    function advanceHeroAlongPath(dt) {
+      if (!hero) return;
+      if (hero.waypointIndex <= 0) return;
+      const target = path[hero.waypointIndex - 1];
+      movePointTowards(hero, target.x, target.y, hero.speed * dt);
+      const dx = target.x - hero.x;
+      const dy = target.y - hero.y;
+      if (Math.hypot(dx, dy) < 2) {
+        hero.waypointIndex = Math.max(0, hero.waypointIndex - 1);
+      }
     }
 
     function moveEnemy(e, dt) {
@@ -808,6 +1020,43 @@
         e.x += (dx / dist) * step;
         e.y += (dy / dist) * step;
       }
+    }
+
+    function summonHero(type) {
+      const cfg = heroConfigs[type];
+      if (!cfg) return;
+      if (hero) {
+        log("A hero is already traveling the path!");
+        return;
+      }
+      if (gold < cfg.cost) {
+        log("Not enough gold to send " + cfg.name + ".");
+        return;
+      }
+
+      gold -= cfg.cost;
+      goldValue.textContent = gold;
+      updateHeroButtons();
+
+      hero = {
+        type,
+        name: cfg.name,
+        x: goal.x,
+        y: goal.y,
+        waypointIndex: path.length - 1,
+        speed: cfg.speed,
+        hp: cfg.hp,
+        maxHp: cfg.hp,
+        damage: cfg.damage,
+        range: cfg.range,
+        attackRate: cfg.attackRate,
+        cooldown: 0,
+        spriteKey: cfg.spriteKey,
+        enemyDamagePerSecond: cfg.enemyDamagePerSecond,
+        state: "advancing"
+      };
+
+      log(cfg.name + " has been summoned! They are marching from the crystal.");
     }
 
     function reachedGoal(e) {
@@ -910,6 +1159,23 @@
       });
     }
 
+    function drawHero() {
+      if (!hero) return;
+      const HERO_SIZE = GRID_SIZE * 2.2;
+      const sprite = loadedSprites[hero.spriteKey];
+      drawSpriteNormalized(sprite, hero.x, hero.y, HERO_SIZE);
+
+      const barWidth = GRID_SIZE * 1.2;
+      const barHeight = 8;
+      const hpRatio = hero.hp / hero.maxHp;
+      const bx = hero.x - barWidth / 2;
+      const by = hero.y - HERO_SIZE * 0.45;
+      ctx.fillStyle = "rgba(0,0,0,0.55)";
+      ctx.fillRect(bx, by, barWidth, barHeight);
+      ctx.fillStyle = "#ffe66d";
+      ctx.fillRect(bx, by, barWidth * Math.max(0, hpRatio), barHeight);
+    }
+
     function drawEnemies() {
       const ENEMY_SIZE = GRID_SIZE * 1.4;
       enemies.forEach((e) => {
@@ -937,36 +1203,62 @@
     }
 
     function drawProjectiles() {
-      projectiles.forEach((p) => {
-        if (p.kind === "mage") {
-          const radius = 5;
-          const gradient = ctx.createRadialGradient(
-            p.x, p.y, 0,
-            p.x, p.y, radius
-          );
-          gradient.addColorStop(0, colors.magicCore);
-          gradient.addColorStop(0.4, colors.magicInner);
-          gradient.addColorStop(1, colors.magicOuter);
-          ctx.fillStyle = gradient;
-          ctx.beginPath();
-          ctx.arc(p.x, p.y, radius, 0, Math.PI * 2);
-          ctx.fill();
+        projectiles.forEach((p) => {
+          if (p.kind === "mage") {
+            const radius = 5;
+            const gradient = ctx.createRadialGradient(
+              p.x, p.y, 0,
+              p.x, p.y, radius
+            );
+            gradient.addColorStop(0, colors.magicCore);
+            gradient.addColorStop(0.4, colors.magicInner);
+            gradient.addColorStop(1, colors.magicOuter);
+            ctx.fillStyle = gradient;
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, radius, 0, Math.PI * 2);
+            ctx.fill();
 
-          ctx.strokeStyle = colors.magicTrail;
-          ctx.lineWidth = 2;
-          const trailLength = 10;
-          const dx = p.tx - p.x;
-          const dy = p.ty - p.y;
-          const dist = Math.hypot(dx, dy) || 1;
-          const ux = dx / dist;
-          const uy = dy / dist;
-          ctx.beginPath();
-          ctx.moveTo(p.x, p.y);
-          ctx.lineTo(p.x - ux * trailLength, p.y - uy * trailLength);
-          ctx.stroke();
-        } else if (p.kind === "sonic") {
-          const radius = 8;
-          ctx.strokeStyle = "rgba(173, 216, 255, 0.9)";
+            ctx.strokeStyle = colors.magicTrail;
+            ctx.lineWidth = 2;
+            const trailLength = 10;
+            const dx = p.tx - p.x;
+            const dy = p.ty - p.y;
+            const dist = Math.hypot(dx, dy) || 1;
+            const ux = dx / dist;
+            const uy = dy / dist;
+            ctx.beginPath();
+            ctx.moveTo(p.x, p.y);
+            ctx.lineTo(p.x - ux * trailLength, p.y - uy * trailLength);
+            ctx.stroke();
+          } else if (p.kind === "heroFireball") {
+            const radius = 7;
+            const gradient = ctx.createRadialGradient(
+              p.x, p.y, 0,
+              p.x, p.y, radius
+            );
+            gradient.addColorStop(0, colors.fireballCore);
+            gradient.addColorStop(0.5, colors.fireballInner);
+            gradient.addColorStop(1, colors.fireballOuter);
+            ctx.fillStyle = gradient;
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, radius, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.strokeStyle = colors.fireballTrail;
+            ctx.lineWidth = 2;
+            const trailLength = 14;
+            const dx = p.tx - p.x;
+            const dy = p.ty - p.y;
+            const dist = Math.hypot(dx, dy) || 1;
+            const ux = dx / dist;
+            const uy = dy / dist;
+            ctx.beginPath();
+            ctx.moveTo(p.x, p.y);
+            ctx.lineTo(p.x - ux * trailLength, p.y - uy * trailLength);
+            ctx.stroke();
+          } else if (p.kind === "sonic") {
+            const radius = 8;
+            ctx.strokeStyle = "rgba(173, 216, 255, 0.9)";
           ctx.lineWidth = 2;
           ctx.beginPath();
           ctx.arc(p.x, p.y, radius, 0, Math.PI * 2);
@@ -1059,6 +1351,7 @@
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       drawBackground();
       drawTowers(timestamp);
+      drawHero();
       drawEnemies();
       drawProjectiles();
 
@@ -1104,6 +1397,7 @@
         log("Welcome to Grovefall.");
         log("Archer, Mage, and Sonic Towers are ready to be placed.");
         log("Enemies emerge from the fire portal and seek the magic crystal.");
+        log("Summon the Guardian or Mage hero from the crystal to push back!");
 
         const spawn = path[0];
         if (portalImg) {
@@ -1122,6 +1416,7 @@
         waveValue.textContent = wave;
         goldValue.textContent = gold;
         livesValue.textContent = lives;
+        updateHeroButtons();
 
         crystalHits = 0;
         updateCrystalStage();
