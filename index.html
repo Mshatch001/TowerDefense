@@ -26,6 +26,7 @@
       border-radius: 16px;
       padding: 16px;
       box-shadow: 0 12px 36px rgba(0, 0, 0, 0.4);
+      max-width: 1100px;
     }
     h1 {
       margin: 0 0 12px;
@@ -54,6 +55,60 @@
       border: 1px solid rgba(77, 208, 225, 0.4);
       font-weight: 600;
     }
+
+    /* HUD / stats below the status row */
+    .hud {
+      margin-top: 12px;
+      font-size: 13px;
+    }
+    .hud-row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 6px;
+    }
+    .label {
+      color: #b6c7d3;
+      margin-right: 2px;
+    }
+    .value {
+      color: #ffffff;
+      font-weight: 600;
+      margin-right: 8px;
+    }
+    .tower-button {
+      display: inline-block;
+      margin: 2px 4px 4px 0;
+      padding: 4px 10px;
+      border-radius: 6px;
+      border: 1px solid rgba(141, 110, 255, 0.8);
+      background: #1d2430;
+      color: #f5f1ff;
+      cursor: pointer;
+      font-size: 12px;
+    }
+    .tower-button.selected {
+      background: #8e6bff;
+      color: #110617;
+    }
+    .instructions {
+      margin-top: 4px;
+      line-height: 1.4;
+      color: #cfd8e3;
+    }
+    #log {
+      margin-top: 6px;
+      max-height: 120px;
+      overflow-y: auto;
+      font-size: 11px;
+      border-top: 1px solid #22313b;
+      padding-top: 4px;
+    }
+    #log div {
+      margin-bottom: 2px;
+      color: #b0c4ff;
+    }
   </style>
 </head>
 <body>
@@ -64,6 +119,26 @@
       <span id="asset-counter">Loading assets 0/0…</span>
       <span id="game-status" class="pill">Preparing</span>
     </div>
+
+    <div class="hud">
+      <div class="hud-row">
+        <span class="label">Wave:</span> <span class="value" id="waveValue">1</span>
+        <span class="label">Gold:</span> <span class="value" id="goldValue">100</span>
+        <span class="label">Lives:</span> <span class="value" id="livesValue">10</span>
+        <span class="label">Enemies:</span> <span class="value" id="enemiesValue">0</span>
+      </div>
+      <div class="hud-row">
+        <span class="label">Towers:</span>
+        <button class="tower-button selected" data-tower-type="arrow">Archer Tower (25g)</button>
+        <button class="tower-button" data-tower-type="mage">Mage Tower (40g)</button>
+      </div>
+      <div class="instructions">
+        • Click on the map near the path to place towers.<br />
+        • Archer Towers fire fast enchanted arrows; Mage Towers fire slower, stronger bolts.<br />
+        • Defend the crystal at the end of the path from the marching enemies.
+      </div>
+      <div id="log"></div>
+    </div>
   </div>
 
   <script>
@@ -72,6 +147,20 @@
     const assetCounter = document.getElementById("asset-counter");
     const gameStatus = document.getElementById("game-status");
 
+    const waveValue = document.getElementById("waveValue");
+    const goldValue = document.getElementById("goldValue");
+    const livesValue = document.getElementById("livesValue");
+    const enemiesValue = document.getElementById("enemiesValue");
+    const logDiv = document.getElementById("log");
+
+    function log(message) {
+      const div = document.createElement("div");
+      const time = new Date().toLocaleTimeString();
+      div.textContent = "[" + time + "] " + message;
+      logDiv.prepend(div);
+    }
+
+    // SPRITE ASSET LOADING
     const spriteManifest = [
       { key: "background", src: "assets/images/map_mushroom_forest.svg" },
       { key: "archer", src: "assets/images/archer.svg" },
@@ -111,7 +200,298 @@
       return Promise.all(spriteManifest.map(loadSprite));
     }
 
-    // Background: scale to fit canvas while preserving aspect ratio
+    // GAME LOGIC (from working version, adapted to use sprites)
+
+    const colors = {
+      path: "#51361f",
+      grass: "#142010",
+      // projectiles & effects from original
+      arrowCore: "#C6FF7A",
+      arrowTrail: "rgba(166,255,176,0.55)",
+      magicCore: "#FFFFFF",
+      magicInner: "#B47CFF",
+      magicOuter: "rgba(132,243,255,0.8)",
+      magicTrail: "rgba(180,124,255,0.7)",
+      crystal: "#6df7ff",
+      crystalGlow: "rgba(109,247,255,0.4)",
+    };
+
+    const GRID_SIZE = 40;
+    const MAP_COLS = canvas.width / GRID_SIZE;
+    const MAP_ROWS = canvas.height / GRID_SIZE;
+
+    const path = [
+      { x: 0.5 * GRID_SIZE, y: 5.5 * GRID_SIZE },
+      { x: 6.5 * GRID_SIZE, y: 5.5 * GRID_SIZE },
+      { x: 6.5 * GRID_SIZE, y: 2.5 * GRID_SIZE },
+      { x: 12.5 * GRID_SIZE, y: 2.5 * GRID_SIZE },
+      { x: 12.5 * GRID_SIZE, y: 10.5 * GRID_SIZE },
+      { x: 18.5 * GRID_SIZE, y: 10.5 * GRID_SIZE },
+    ];
+    const goal = path[path.length - 1];
+
+    let gold = 100;
+    let lives = 10;
+    let wave = 1;
+
+    let towers = [];
+    let enemies = [];
+    let projectiles = [];
+
+    let spawnTimer = 0;
+    let spawnInterval = 1400; // ms
+    let enemiesToSpawn = 5;
+    let lastFrameTime = performance.now();
+
+    let selectedTowerType = "arrow";
+
+    const towerButtons = document.querySelectorAll(".tower-button");
+    towerButtons.forEach((btn) => {
+      btn.addEventListener("click", () => {
+        towerButtons.forEach((b) => b.classList.remove("selected"));
+        btn.classList.add("selected");
+        selectedTowerType = btn.dataset.towerType;
+      });
+    });
+
+    canvas.addEventListener("click", placeTowerFromClick);
+
+    function placeTowerFromClick(event) {
+      const rect = canvas.getBoundingClientRect();
+      const scaleX = canvas.width / rect.width;
+      const scaleY = canvas.height / rect.height;
+      const x = (event.clientX - rect.left) * scaleX;
+      const y = (event.clientY - rect.top) * scaleY;
+
+      const gridX = Math.floor(x / GRID_SIZE);
+      const gridY = Math.floor(y / GRID_SIZE);
+
+      if (isOnPath(gridX, gridY)) {
+        log("You cannot build on the enemy path.");
+        return;
+      }
+      if (towers.some((t) => t.gridX === gridX && t.gridY === gridY)) {
+        log("There is already a tower there.");
+        return;
+      }
+
+      const cfg = getTowerConfig(selectedTowerType);
+      if (gold < cfg.cost) {
+        log("Not enough gold to build " + cfg.name + ".");
+        return;
+      }
+
+      gold -= cfg.cost;
+      goldValue.textContent = gold;
+
+      towers.push({
+        type: selectedTowerType,
+        name: cfg.name,
+        gridX,
+        gridY,
+        x: gridX * GRID_SIZE + GRID_SIZE / 2,
+        y: gridY * GRID_SIZE + GRID_SIZE / 2,
+        range: cfg.range,
+        fireRate: cfg.fireRate,
+        cooldown: 0,
+        projectileSpeed: cfg.projectileSpeed,
+        damage: cfg.damage,
+      });
+
+      log("Built " + cfg.name + " at (" + gridX + ", " + gridY + ").");
+    }
+
+    function isOnPath(gx, gy) {
+      const cx = gx * GRID_SIZE + GRID_SIZE / 2;
+      const cy = gy * GRID_SIZE + GRID_SIZE / 2;
+      const maxDist = GRID_SIZE * 0.6;
+
+      for (let i = 0; i < path.length - 1; i++) {
+        const a = path[i];
+        const b = path[i + 1];
+        const dist = distancePointToSegment(cx, cy, a.x, a.y, b.x, b.y);
+        if (dist < maxDist) return true;
+      }
+      return false;
+    }
+
+    function distancePointToSegment(px, py, x1, y1, x2, y2) {
+      const dx = x2 - x1;
+      const dy = y2 - y1;
+      if (dx === 0 && dy === 0) {
+        return Math.hypot(px - x1, py - y1);
+      }
+      const t = ((px - x1) * dx + (py - y1) * dy) / (dx * dx + dy * dy);
+      const tt = Math.max(0, Math.min(1, t));
+      const projX = x1 + tt * dx;
+      const projY = y1 + tt * dy;
+      return Math.hypot(px - projX, py - projY);
+    }
+
+    function getTowerConfig(type) {
+      if (type === "mage") {
+        return {
+          name: "Mage Tower",
+          cost: 40,
+          range: 150,
+          fireRate: 900,
+          projectileSpeed: 260,
+          damage: 3,
+        };
+      }
+      return {
+        name: "Archer Tower",
+        cost: 25,
+        range: 130,
+        fireRate: 450,
+        projectileSpeed: 360,
+        damage: 1,
+      };
+    }
+
+    function spawnEnemy() {
+      const baseHp = 5 + wave * 1.5;
+      const speed = 45 + wave * 3;
+
+      // Pick a sprite for this enemy
+      const enemyKeys = ["enemyGoblin", "enemyOrc", "enemyTroll", "enemySonic"];
+      const spriteKey = enemyKeys[Math.floor(Math.random() * enemyKeys.length)];
+
+      enemies.push({
+        x: path[0].x,
+        y: path[0].y,
+        waypointIndex: 0,
+        speed,
+        hp: baseHp,
+        maxHp: baseHp,
+        spriteKey,
+      });
+    }
+
+    function update(dt) {
+      if (enemiesToSpawn > 0) {
+        spawnTimer += dt * 1000;
+        if (spawnTimer >= spawnInterval) {
+          spawnTimer = 0;
+          spawnEnemy();
+          enemiesToSpawn -= 1;
+        }
+      } else if (enemies.length === 0) {
+        wave += 1;
+        waveValue.textContent = wave;
+        enemiesToSpawn = 5 + wave * 2;
+        spawnInterval = Math.max(500, 1400 - wave * 60);
+        log("Wave " + wave + " is approaching.");
+      }
+
+      for (let i = enemies.length - 1; i >= 0; i--) {
+        const e = enemies[i];
+        moveEnemy(e, dt);
+        if (reachedGoal(e)) {
+          enemies.splice(i, 1);
+          lives -= 1;
+          livesValue.textContent = lives;
+          log("An enemy reached the crystal. Lives left: " + lives);
+          if (lives <= 0) {
+            log("The crystal has fallen. Refresh the page to restart.");
+          }
+        }
+      }
+
+      towers.forEach((t) => {
+        t.cooldown -= dt * 1000;
+        if (t.cooldown <= 0 && enemies.length > 0 && lives > 0) {
+          const target = findTargetForTower(t);
+          if (target) {
+            fireAtTarget(t, target);
+          }
+        }
+      });
+
+      for (let i = projectiles.length - 1; i >= 0; i--) {
+        const p = projectiles[i];
+        const dx = p.tx - p.x;
+        const dy = p.ty - p.y;
+        const dist = Math.hypot(dx, dy);
+        const step = p.speed * dt;
+        if (dist <= step || dist === 0) {
+          if (p.target && enemies.includes(p.target)) {
+            p.target.hp -= p.damage;
+            if (p.target.hp <= 0) {
+              const idx = enemies.indexOf(p.target);
+              if (idx >= 0) {
+                enemies.splice(idx, 1);
+                const reward = 3 + Math.floor(wave / 2);
+                gold += reward;
+                goldValue.textContent = gold;
+                log("Enemy defeated. +" + reward + " gold.");
+              }
+            }
+          }
+          projectiles.splice(i, 1);
+        } else {
+          p.x += (dx / dist) * step;
+          p.y += (dy / dist) * step;
+        }
+      }
+
+      enemiesValue.textContent = enemies.length + enemiesToSpawn;
+    }
+
+    function moveEnemy(e, dt) {
+      if (e.waypointIndex >= path.length - 1) return;
+      const target = path[e.waypointIndex + 1];
+      const dx = target.x - e.x;
+      const dy = target.y - e.y;
+      const dist = Math.hypot(dx, dy);
+      const step = e.speed * dt;
+      if (step >= dist && dist !== 0) {
+        e.x = target.x;
+        e.y = target.y;
+        e.waypointIndex += 1;
+      } else if (dist > 0) {
+        e.x += (dx / dist) * step;
+        e.y += (dy / dist) * step;
+      }
+    }
+
+    function reachedGoal(e) {
+      const dx = e.x - goal.x;
+      const dy = e.y - goal.y;
+      return Math.hypot(dx, dy) < 14;
+    }
+
+    function findTargetForTower(tower) {
+      let nearest = null;
+      let bestDist = Infinity;
+      enemies.forEach((e) => {
+        const dx = e.x - tower.x;
+        const dy = e.y - tower.y;
+        const dist = Math.hypot(dx, dy);
+        if (dist <= tower.range && dist < bestDist) {
+          bestDist = dist;
+          nearest = e;
+        }
+      });
+      return nearest;
+    }
+
+    function fireAtTarget(tower, target) {
+      tower.cooldown = tower.fireRate;
+      projectiles.push({
+        x: tower.x,
+        y: tower.y,
+        tx: target.x,
+        ty: target.y,
+        target: target,
+        speed: tower.projectileSpeed,
+        damage: tower.damage,
+        kind: tower.type,
+      });
+    }
+
+    // DRAWING WITH SPRITES
+
     function drawBackground() {
       const bg = loadedSprites.background;
       if (bg && bg.complete && bg.naturalWidth > 0) {
@@ -120,37 +500,51 @@
 
         let drawWidth, drawHeight, offsetX, offsetY;
         if (imgAspect > canvasAspect) {
-          // Image is wider than canvas
           drawHeight = canvas.height;
           drawWidth = bg.naturalWidth * (drawHeight / bg.naturalHeight);
           offsetX = (canvas.width - drawWidth) / 2;
           offsetY = 0;
         } else {
-          // Image is taller than canvas
           drawWidth = canvas.width;
           drawHeight = bg.naturalHeight * (drawWidth / bg.naturalWidth);
           offsetX = 0;
           offsetY = (canvas.height - drawHeight) / 2;
         }
-
         ctx.drawImage(bg, offsetX, offsetY, drawWidth, drawHeight);
       } else {
-        ctx.fillStyle = "#0f2d1e";
+        ctx.fillStyle = colors.grass;
         ctx.fillRect(0, 0, canvas.width, canvas.height);
       }
+
+      // Overlay the path
+      ctx.lineWidth = GRID_SIZE * 0.9;
+      ctx.strokeStyle = colors.path;
+      ctx.lineCap = "round";
+      ctx.beginPath();
+      ctx.moveTo(path[0].x, path[0].y);
+      for (let i = 1; i < path.length; i++) {
+        ctx.lineTo(path[i].x, path[i].y);
+      }
+      ctx.stroke();
+
+      // Goal crystal
+      ctx.save();
+      ctx.shadowColor = colors.crystalGlow;
+      ctx.shadowBlur = 24;
+      ctx.fillStyle = colors.crystal;
+      ctx.beginPath();
+      ctx.arc(goal.x, goal.y, 14, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
     }
 
-    // Helper: draw any sprite at a normalized size
     function drawSpriteNormalized(sprite, x, y, maxSize) {
       if (!sprite || !sprite.complete || sprite.naturalWidth === 0) return;
-
       const w = sprite.naturalWidth;
       const h = sprite.naturalHeight;
       const scale = maxSize / Math.max(w, h);
-
       const drawWidth = w * scale;
       const drawHeight = h * scale;
-
       ctx.drawImage(
         sprite,
         x - drawWidth / 2,
@@ -160,47 +554,166 @@
       );
     }
 
-    function drawTowers() {
-      const TOWER_SIZE = 96; // target size in pixels
-      const towers = [
-        { sprite: loadedSprites.archer, x: 120, y: 360 },
-        { sprite: loadedSprites.mage, x: 620, y: 360 },
-      ];
-      towers.forEach(({ sprite, x, y }) => {
-        drawSpriteNormalized(sprite, x, y, TOWER_SIZE);
+    function drawTowers(time) {
+      const TOWER_SIZE = GRID_SIZE * 1.4;
+      towers.forEach((t) => {
+        ctx.beginPath();
+        ctx.strokeStyle = "rgba(255,255,255,0.06)";
+        ctx.lineWidth = 1;
+        ctx.arc(t.x, t.y, t.range, 0, Math.PI * 2);
+        ctx.stroke();
+
+        if (t.type === "mage") {
+          drawSpriteNormalized(loadedSprites.mage, t.x, t.y, TOWER_SIZE);
+        } else {
+          drawSpriteNormalized(loadedSprites.archer, t.x, t.y, TOWER_SIZE);
+        }
       });
     }
 
     function drawEnemies() {
-      const ENEMY_SIZE = 96; // target size in pixels
-      const enemies = [
-        { sprite: loadedSprites.enemyGoblin, x: 180, y: 220 },
-        { sprite: loadedSprites.enemyOrc, x: 330, y: 180 },
-        { sprite: loadedSprites.enemyTroll, x: 480, y: 230 },
-        { sprite: loadedSprites.enemySonic, x: 610, y: 190 },
-      ];
-      enemies.forEach(({ sprite, x, y }) => {
-        drawSpriteNormalized(sprite, x, y, ENEMY_SIZE);
+      const ENEMY_SIZE = GRID_SIZE * 1.4;
+      enemies.forEach((e) => {
+        const sprite =
+          loadedSprites[e.spriteKey] || loadedSprites.enemyGoblin || null;
+        drawSpriteNormalized(sprite, e.x, e.y, ENEMY_SIZE);
+
+        // Health bar
+        const barWidth = GRID_SIZE * 0.7;
+        const barHeight = 5;
+        const hpRatio = e.hp / e.maxHp;
+        const bx = e.x - barWidth / 2;
+        const by = e.y - ENEMY_SIZE * 0.4;
+        ctx.fillStyle = "rgba(0,0,0,0.5)";
+        ctx.fillRect(bx, by, barWidth, barHeight);
+        ctx.fillStyle = "#5eff7b";
+        ctx.fillRect(bx, by, barWidth * Math.max(0, hpRatio), barHeight);
       });
     }
 
-    function render() {
+    function drawProjectiles() {
+      projectiles.forEach((p) => {
+        if (p.kind === "mage") {
+          const radius = 5;
+          const gradient = ctx.createRadialGradient(
+            p.x,
+            p.y,
+            0,
+            p.x,
+            p.y,
+            radius
+          );
+          gradient.addColorStop(0, colors.magicCore);
+          gradient.addColorStop(0.4, colors.magicInner);
+          gradient.addColorStop(1, colors.magicOuter);
+          ctx.fillStyle = gradient;
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, radius, 0, Math.PI * 2);
+          ctx.fill();
+
+          ctx.strokeStyle = colors.magicTrail;
+          ctx.lineWidth = 2;
+          const trailLength = 10;
+          const dx = p.tx - p.x;
+          const dy = p.ty - p.y;
+          const dist = Math.hypot(dx, dy) || 1;
+          const ux = dx / dist;
+          const uy = dy / dist;
+          ctx.beginPath();
+          ctx.moveTo(p.x, p.y);
+          ctx.lineTo(p.x - ux * trailLength, p.y - uy * trailLength);
+          ctx.stroke();
+        } else {
+          const dx = p.tx - p.x;
+          const dy = p.ty - p.y;
+          const dist = Math.hypot(dx, dy) || 1;
+          const ux = dx / dist;
+          const uy = dy / dist;
+
+          const arrowLength = 14;
+          const tipX = p.x + ux * arrowLength;
+          const tipY = p.y + uy * arrowLength;
+
+          ctx.strokeStyle = colors.arrowTrail;
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.moveTo(p.x - ux * 6, p.y - uy * 6);
+          ctx.lineTo(p.x, p.y);
+          ctx.stroke();
+
+          ctx.strokeStyle = colors.arrowCore;
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.moveTo(p.x, p.y);
+          ctx.lineTo(tipX, tipY);
+          ctx.stroke();
+
+          ctx.fillStyle = colors.arrowCore;
+          ctx.beginPath();
+          ctx.moveTo(tipX, tipY);
+          ctx.lineTo(
+            tipX - uy * 3 - ux * 3,
+            tipY + ux * 3 - uy * 3
+          );
+          ctx.lineTo(
+            tipX + uy * 3 - ux * 3,
+            tipY - ux * 3 - uy * 3
+          );
+          ctx.closePath();
+          ctx.fill();
+        }
+      });
+    }
+
+    function draw(timestamp) {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       drawBackground();
-      drawTowers();
+      drawTowers(timestamp);
       drawEnemies();
-      requestAnimationFrame(render);
+      drawProjectiles();
     }
 
-    function startGame() {
-      gameStatus.textContent = "Ready";
-      gameStatus.style.background = "rgba(76, 175, 80, 0.14)";
-      gameStatus.style.color = "#c8e6c9";
-      requestAnimationFrame(render);
+    function gameLoop(timestamp) {
+      const dt = (timestamp - lastFrameTime) / 1000;
+      lastFrameTime = timestamp;
+
+      if (lives > 0) {
+        update(dt);
+      }
+      draw(timestamp);
+      requestAnimationFrame(gameLoop);
     }
 
+    // Polyfill for roundRect if ever needed
+    if (!CanvasRenderingContext2D.prototype.roundRect) {
+      CanvasRenderingContext2D.prototype.roundRect = function (x, y, w, h, r) {
+        if (w < 2 * r) r = w / 2;
+        if (h < 2 * r) r = h / 2;
+        this.beginPath();
+        this.moveTo(x + r, y);
+        this.arcTo(x + w, y, x + w, y + h, r);
+        this.arcTo(x + w, y + h, x, y + h, r);
+        this.arcTo(x, y + h, x, y, r);
+        this.arcTo(x, y, x + w, y, r);
+        this.closePath();
+        return this;
+      };
+    }
+
+    // STARTUP: wait for assets, then start the game loop
     loadAllSprites()
-      .then(() => startGame())
+      .then(() => {
+        gameStatus.textContent = "Ready";
+        gameStatus.style.background = "rgba(76, 175, 80, 0.14)";
+        gameStatus.style.color = "#c8e6c9";
+
+        log("Welcome, Wardens of the Arcane Forest.");
+        log("Archer and Mage Towers are ready to be placed.");
+        log("Place towers to defend the crystal against enemy waves.");
+
+        lastFrameTime = performance.now();
+        requestAnimationFrame(gameLoop);
+      })
       .catch((error) => {
         gameStatus.textContent = "Asset error";
         gameStatus.style.background = "rgba(244, 67, 54, 0.14)";
