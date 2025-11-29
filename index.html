@@ -205,6 +205,28 @@
       bgMusic.currentTime = 0;
     }
 
+    // --- Projectile Sound Effects (with subtle pitch variation) ---
+    const arrowSfx = new Audio("assets/audio/arrowsound.mp3");
+    arrowSfx.volume = 1.0;   // louder
+
+    const mageOrbSfx = new Audio("assets/audio/mageorbsound.mp3");
+    mageOrbSfx.volume = 0.4; // quieter
+
+    const sonicSfx = new Audio("assets/audio/sonicsound.mp3");
+    sonicSfx.volume = 0.25;  // quietest
+
+    function playSfxWithVariation(audio, minRate, maxRate) {
+      try {
+        const rate = minRate + Math.random() * (maxRate - minRate);
+        audio.pause();
+        audio.currentTime = 0;
+        audio.playbackRate = rate;
+        audio.play().catch(() => {});
+      } catch (e) {
+        // Ignore audio errors
+      }
+    }
+
     function log(message) {
       const div = document.createElement("div");
       const time = new Date().toLocaleTimeString();
@@ -566,6 +588,19 @@
 
     function fireAtTarget(tower, target) {
       tower.cooldown = tower.fireRate;
+
+      // Play tower-specific projectile sound with subtle pitch variation
+      if (tower.type === "mage") {
+        // Mage: subtle ±5% pitch
+        playSfxWithVariation(mageOrbSfx, 0.95, 1.05);
+      } else if (tower.type === "sonic") {
+        // Sonic: subtle but slightly wider ±10% pitch
+        playSfxWithVariation(sonicSfx, 0.90, 1.10);
+      } else {
+        // Archer (default): subtle ±8% pitch
+        playSfxWithVariation(arrowSfx, 0.92, 1.08);
+      }
+
       projectiles.push({
         x: tower.x,
         y: tower.y,
