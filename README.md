@@ -9,3 +9,15 @@ A small 2D tower defense prototype built as a single-page HTML5 canvas game.
 
 ## How to play
 Open `index.html` in a modern browser. The status bar shows asset loading progress; the scene renders once all sprites are ready.
+
+## Development
+
+### Branching Strategy
+- **main**: Production-ready code. Protected branch for stable releases.
+- **dev**: Development branch for ongoing work. Use this branch for feature development and testing before merging to main.
+
+### Workflow
+1. Create feature branches from `dev` for new features
+2. Test changes thoroughly on feature branches
+3. Merge completed features into `dev`
+4. When ready for release, merge `dev` into `main`
