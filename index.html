@@ -3,13 +3,22 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Arcane Forest Defense</title>
+  <title>Grovefall</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;900&display=swap"
+    rel="stylesheet"
+  />
+
   <style>
     :root {
       color-scheme: dark;
       --panel: #0f1b22;
       --accent: #4dd0e1;
       --text: #e3f2fd;
+      --error: #f44336;
     }
     body {
       margin: 0;
@@ -17,8 +26,8 @@
       color: var(--text);
       font-family: "Inter", system-ui, -apple-system, sans-serif;
       display: grid;
-      min-height: 100vh;
       place-items: center;
+      min-height: 100vh;
     }
     .frame {
       background: var(--panel);
@@ -26,38 +35,82 @@
       border-radius: 16px;
       padding: 16px;
       box-shadow: 0 12px 36px rgba(0, 0, 0, 0.4);
-      max-width: 1100px;
+      max-width: 1620px;
+      width: 95%;
+    }
+    .title-banner {
+      display: flex;
+      justify-content: center;
+      margin: 0 0 12px;
+    }
+    .title-banner img {
+      max-width: 100%;
+      height: auto;
+      display: block;
     }
     h1 {
-      margin: 0 0 12px;
-      font-size: 20px;
-      letter-spacing: 0.04em;
-      text-align: center;
+      position: absolute;
+      left: -9999px;
+      top: -9999px;
+      height: 1px;
+      width: 1px;
+      overflow: hidden;
     }
 
-    /* Canvas wrapped so we can overlay the animated portal */
+    .game-content {
+      display: flex;
+      gap: 16px;
+      flex-wrap: wrap;
+      justify-content: center;
+      align-items: flex-start;
+    }
     .canvas-wrapper {
       position: relative;
       display: inline-block;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
     }
-
     #gameCanvas {
       background: #0f2d1e;
-      border-radius: 12px;
       display: block;
     }
 
-    /* Animated Fire Portal overlay */
-    #firePortalAnimated {
+    /* Portal & Crystal overlays */
+    #firePortalAnimated,
+    #crystalStage1,
+    #crystalStage2,
+    #crystalStage3,
+    #crystalStage4 {
       position: absolute;
-      width: 80px;      /* 2 × GRID_SIZE (40) */
-      height: 80px;
-      pointer-events: none;   /* clicks go through to canvas */
-      transform: translate(-50%, -50%); /* center on x/y */
+      pointer-events: none;
+      transform: translate(-50%, -50%);
+      display: none;
+    }
+
+    /* Updated sizes */
+    #firePortalAnimated {
+      width: 160px;
+      height: 160px;
+    }
+    #crystalStage1,
+    #crystalStage2,
+    #crystalStage3,
+    #crystalStage4 {
+      width: 130px;
+      height: 130px;
+    }
+
+    .hud-panel {
+      flex: 1 1 300px;
+      min-width: 300px;
+      max-width: 300px;
+      display: flex;
+      flex-direction: column;
     }
 
     .status {
-      margin-top: 8px;
+      margin-bottom: 12px;
       display: flex;
       justify-content: space-between;
       align-items: center;
@@ -72,17 +125,18 @@
       border: 1px solid rgba(77, 208, 225, 0.4);
       font-weight: 600;
     }
-
     .hud {
-      margin-top: 12px;
-      font-size: 13px;
+      margin-top: 0;
+      font-size: 14px;
     }
     .hud-row {
       display: flex;
       flex-wrap: wrap;
       align-items: center;
       gap: 12px;
-      margin-bottom: 6px;
+      margin-bottom: 8px;
+      padding: 4px 0;
+      border-bottom: 1px dashed rgba(255, 255, 255, 0.05);
     }
     .label {
       color: #b6c7d3;
@@ -92,30 +146,42 @@
       color: #ffffff;
       font-weight: 600;
       margin-right: 8px;
+      min-width: 30px;
+    }
+    .tower-selection-group {
+      margin-top: 12px;
+      margin-bottom: 12px;
     }
     .tower-button {
-      display: inline-block;
-      margin: 2px 4px 4px 0;
-      padding: 4px 10px;
+      display: block;
+      width: 100%;
+      margin: 6px 0;
+      padding: 8px 10px;
       border-radius: 6px;
-      border: 1px solid rgba(141, 110, 255, 0.8);
-      background: #1d2430;
+      border: 1px solid rgba(141, 110, 255, 0.4);
+      background: #181d25;
       color: #f5f1ff;
       cursor: pointer;
-      font-size: 12px;
+      font-size: 13px;
+      text-align: left;
+      transition: background-color 0.2s;
     }
     .tower-button.selected {
       background: #8e6bff;
       color: #110617;
+      border-color: #8e6bff;
     }
     .instructions {
       margin-top: 4px;
       line-height: 1.4;
       color: #cfd8e3;
+      font-size: 12px;
+      border-top: 1px solid #22313b;
+      padding-top: 8px;
     }
     #log {
-      margin-top: 6px;
-      max-height: 120px;
+      margin-top: auto;
+      max-height: 140px;
       overflow-y: auto;
       font-size: 11px;
       border-top: 1px solid #22313b;
@@ -125,47 +191,107 @@
       margin-bottom: 2px;
       color: #b0c4ff;
     }
+    .hp-bar-outer {
+      flex-grow: 1;
+      height: 10px;
+      border-radius: 999px;
+      background: rgba(10, 20, 30, 0.9);
+      border: 1px solid rgba(109, 247, 255, 0.4);
+      overflow: hidden;
+    }
+    .hp-bar-inner {
+      height: 100%;
+      border-radius: 999px;
+      background: linear-gradient(
+        90deg,
+        #6df7ff,
+        #a6ffb3,
+        #ffc966
+      );
+      width: 100%;
+      transition: width 0.25s ease-out;
+    }
   </style>
 </head>
 <body>
   <div class="frame">
-    <h1>Arcane Forest Defense</h1>
-
-    <div class="canvas-wrapper">
-      <canvas id="gameCanvas" width="800" height="540" aria-label="Tower defense canvas"></canvas>
-      <!-- Animated Fire Portal overlay -->
-      <img
-        id="firePortalAnimated"
-        src="assets/images/Fire_Portal.svg"
-        alt="Fire Portal"
-      />
+    <div class="title-banner">
+      <img src="assets/images/Grovefall_banner.png" alt="Grovefall" />
     </div>
+    <h1>Grovefall</h1>
 
-    <div class="status">
-      <span id="asset-counter">Loading assets 0/0…</span>
-      <span id="game-status" class="pill">Preparing</span>
-    </div>
+    <div class="game-content">
+      <div class="canvas-wrapper">
+        <canvas id="gameCanvas" width="1280" height="1280" aria-label="Tower defense canvas"></canvas>
 
-    <div class="hud">
-      <div class="hud-row">
-        <span class="label">Wave:</span> <span class="value" id="waveValue">1</span>
-        <span class="label">Gold:</span> <span class="value" id="goldValue">100</span>
-        <span class="label">Lives:</span> <span class="value" id="livesValue">10</span>
-        <span class="label">Enemies:</span> <span class="value" id="enemiesValue">0</span>
+        <img
+          id="firePortalAnimated"
+          src="assets/images/Fire_Portal.svg"
+          alt="Fire Portal"
+        />
+
+        <img
+          id="crystalStage1"
+          src="assets/images/MagicCrystal_stage1.svg"
+          alt="Crystal Stage 1"
+        />
+        <img
+          id="crystalStage2"
+          src="assets/images/MagicCrystal_stage2.svg"
+          alt="Crystal Stage 2"
+        />
+        <img
+          id="crystalStage3"
+          src="assets/images/MagicCrystal_stage3.svg"
+          alt="Crystal Stage 3"
+        />
+        <img
+          id="crystalStage4"
+          src="assets/images/MagicCrystal_stage4.svg"
+          alt="Crystal Stage 4"
+        />
       </div>
-      <div class="hud-row">
-        <span class="label">Towers:</span>
-        <button class="tower-button selected" data-tower-type="arrow">Archer Tower (25g)</button>
-        <button class="tower-button" data-tower-type="mage">Mage Tower (40g)</button>
-        <button class="tower-button" data-tower-type="sonic">Sonic Tower (60g)</button>
+
+      <div class="hud-panel">
+        <div class="status">
+          <span id="asset-counter">Loading assets 0/0…</span>
+          <span id="game-status" class="pill">Preparing</span>
+        </div>
+
+        <div class="hud">
+          <div class="hud-row">
+            <span class="label">Wave:</span> <span class="value" id="waveValue">1</span>
+            <span class="label">Gold:</span> <span class="value" id="goldValue">100</span>
+            <span class="label">Lives:</span> <span class="value" id="livesValue">10</span>
+          </div>
+          <div class="hud-row">
+            <span class="label">Enemies Remaining:</span> <span class="value" id="enemiesValue">0</span>
+          </div>
+          <div class="hud-row">
+            <span class="label">Crystal HP:</span>
+            <div class="hp-bar-outer">
+              <div class="hp-bar-inner" id="crystalHpFill"></div>
+            </div>
+            <span class="value" id="crystalHpText">10 / 10</span>
+          </div>
+
+          <div class="tower-selection-group">
+            <span class="label">Towers:</span>
+            <button class="tower-button selected" data-tower-type="arrow">Archer Tower (25g)</button>
+            <button class="tower-button" data-tower-type="mage">Mage Tower (40g)</button>
+            <button class="tower-button" data-tower-type="sonic">Sonic Tower (60g)</button>
+          </div>
+
+          <div class="instructions">
+            • Click on the <strong>grass</strong> to place towers. (Cannot build on the path!)<br />
+            • <strong>Archer:</strong> Fast fire rate, low damage.<br />
+            • <strong>Mage:</strong> Slower fire rate, high damage.<br />
+            • <strong>Sonic:</strong> Low damage, applies a brief <strong>stun</strong> effect.<br />
+          </div>
+        </div>
+
+        <div id="log"></div>
       </div>
-      <div class="instructions">
-        • Click on the map near the path to place towers.<br />
-        • Archer Towers fire fast enchanted arrows; Mage Towers fire slower, stronger bolts.<br />
-        • Sonic Towers emit stunning shockwaves that briefly stop enemies.<br />
-        • Enemies emerge from the fire portal and try to reach the magic crystal.<br />
-      </div>
-      <div id="log"></div>
     </div>
   </div>
 
@@ -183,21 +309,66 @@
 
     const portalImg = document.getElementById("firePortalAnimated");
 
-    // --- Background Music Setup ---
+    const crystalStages = [
+      document.getElementById("crystalStage1"),
+      document.getElementById("crystalStage2"),
+      document.getElementById("crystalStage3"),
+      document.getElementById("crystalStage4"),
+    ];
+
+    let crystalHits = 0; // 0–10 hits; 10 = destroyed
+
+    const crystalHpFill = document.getElementById("crystalHpFill");
+    const crystalHpText = document.getElementById("crystalHpText");
+
+    function currentCrystalStage() {
+      const maxHp = 10;
+      const currentLives = Math.max(0, maxHp - crystalHits);
+      if (currentLives > 7) return 1; // 8-10 lives
+      if (currentLives > 4) return 2; // 5-7 lives
+      if (currentLives > 1) return 3; // 2-4 lives
+      return 4; // 0-1 lives (critical)
+    }
+
+    function updateCrystalStage() {
+      const stageIndex = currentCrystalStage() - 1;
+      crystalStages.forEach((img, idx) => {
+        if (!img) return;
+        img.style.display = idx === stageIndex ? "block" : "none";
+      });
+    }
+
+    function updateCrystalHpUi() {
+      const maxHp = 10;
+      const hp = Math.max(0, maxHp - crystalHits);
+      const pct = (hp / maxHp) * 100;
+      if (crystalHpFill) crystalHpFill.style.width = `${pct}%`;
+      if (crystalHpText) crystalHpText.textContent = `${hp} / ${maxHp}`;
+    }
+
+    // --- Audio ---
+
     const bgMusic = new Audio("assets/audio/WhisperingGroves.mp3");
     bgMusic.loop = true;
     bgMusic.volume = 0.5;
 
     let musicStarted = false;
+    let musicShouldPlay = false;
 
-    function startMusicOnce() {
-      if (musicStarted) return;
-      musicStarted = true;
+    function requestMusicStart() {
+      musicShouldPlay = true;
+      tryStartMusic();
+    }
 
-      bgMusic.play().catch(err => {
-        console.warn("Music could not start yet, retrying on next interaction.", err);
-        musicStarted = false;
-      });
+    function tryStartMusic() {
+      if (musicStarted || !musicShouldPlay) return;
+      bgMusic.play()
+        .then(() => {
+          musicStarted = true;
+        })
+        .catch(() => {
+          // Autoplay blocked; try again on next interaction
+        });
     }
 
     function stopMusic() {
@@ -205,7 +376,6 @@
       bgMusic.currentTime = 0;
     }
 
-    // --- Projectile Sound Effects (with subtle pitch variation, reduced volumes) ---
     const arrowSfx = new Audio("assets/audio/arrowsound.mp3");
     arrowSfx.volume = 0.55;
 
@@ -215,7 +385,6 @@
     const sonicSfx = new Audio("assets/audio/sonicsound.mp3");
     sonicSfx.volume = 0.20;
 
-    // --- Enemy death SFX (quieter) ---
     const goblinDamageSfx = new Audio("assets/audio/goblindamaged.mp3");
     goblinDamageSfx.volume = 0.45;
 
@@ -225,7 +394,31 @@
     const trollDamageSfx = new Audio("assets/audio/Trolldamaged.mp3");
     trollDamageSfx.volume = 0.55;
 
-    // --- Win / Loss Sounds ---
+    const crystalDamageStage1Sfx = new Audio("assets/audio/crystaldamagestage1.mp3");
+    crystalDamageStage1Sfx.volume = 0.55;
+
+    const crystalDamageStage2Sfx = new Audio("assets/audio/crystaldamagestage2.mp3");
+    crystalDamageStage2Sfx.volume = 0.6;
+
+    const crystalDamageStage3Sfx = new Audio("assets/audio/crystaldamagestage3.mp3");
+    crystalDamageStage3Sfx.volume = 0.65;
+
+    const crystalDamageStage4Sfx = new Audio("assets/audio/crystaldamagestage4.mp3");
+    crystalDamageStage4Sfx.volume = 0.7;
+
+    function playCrystalDamageSfx() {
+      const stage = currentCrystalStage();
+      if (stage === 1) {
+        playSfxWithVariation(crystalDamageStage1Sfx, 0.97, 1.03);
+      } else if (stage === 2) {
+        playSfxWithVariation(crystalDamageStage2Sfx, 0.96, 1.04);
+      } else if (stage === 3) {
+        playSfxWithVariation(crystalDamageStage3Sfx, 0.95, 1.05);
+      } else {
+        playSfxWithVariation(crystalDamageStage4Sfx, 0.95, 1.05);
+      }
+    }
+
     const victorySfx = new Audio("assets/audio/Victory.mp3");
     victorySfx.volume = 0.7;
 
@@ -235,13 +428,10 @@
     function playSfxWithVariation(audio, minRate, maxRate) {
       try {
         const rate = minRate + Math.random() * (maxRate - minRate);
-        audio.pause();
-        audio.currentTime = 0;
-        audio.playbackRate = rate;
-        audio.play().catch(() => {});
-      } catch (e) {
-        // Ignore audio errors
-      }
+        const clone = audio.cloneNode();
+        clone.playbackRate = rate;
+        clone.play().catch(() => {});
+      } catch (e) {}
     }
 
     function playEnemyDeathSfx(spriteKey) {
@@ -261,7 +451,6 @@
       logDiv.prepend(div);
     }
 
-    // SPRITE ASSET LOADING
     const spriteManifest = [
       { key: "background",  src: "assets/images/map_mushroom_forest.svg" },
       { key: "archer",      src: "assets/images/archer.svg" },
@@ -269,8 +458,7 @@
       { key: "enemyGoblin", src: "assets/images/Goblin.svg" },
       { key: "enemyOrc",    src: "assets/images/Orc.svg" },
       { key: "enemyTroll",  src: "assets/images/Troll.svg" },
-      { key: "sonicTower",  src: "assets/images/Sonic.svg" },
-      { key: "magicCrystal",src: "assets/images/MagicCrystal.svg" }
+      { key: "sonicTower",  src: "assets/images/Sonic.svg" }
     ];
 
     const loadedSprites = {};
@@ -302,8 +490,6 @@
       return Promise.all(spriteManifest.map(loadSprite));
     }
 
-    // GAME LOGIC
-
     const colors = {
       path: "rgba(160, 120, 70, 0.55)",
       grass: "#142010",
@@ -312,22 +498,31 @@
       magicCore: "#FFFFFF",
       magicInner: "#B47CFF",
       magicOuter: "rgba(132,243,255,0.8)",
-      magicTrail: "rgba(180,124,255,0.7)",
-      crystal: "#6df7ff",
-      crystalGlow: "rgba(109,247,255,0.4)"
+      magicTrail: "rgba(180,124,255,0.7)"
     };
 
-    const GRID_SIZE = 40;
-    const MAP_COLS = canvas.width / GRID_SIZE;
-    const MAP_ROWS = canvas.height / GRID_SIZE;
+    const GRID_SIZE = 40; // 1280 / 32
+    const MAP_COLS = canvas.width / GRID_SIZE; // 32
+    const MAP_ROWS = canvas.height / GRID_SIZE; // 32
 
+    // Cleaned path: using your grid comments as truth.
+    // Grid -> Canvas: x = (col + 0.5) * 40, y = (row + 0.5) * 40
     const path = [
-      { x: 0.5 * GRID_SIZE,  y: 5.5 * GRID_SIZE },
-      { x: 6.5 * GRID_SIZE,  y: 5.5 * GRID_SIZE },
-      { x: 6.5 * GRID_SIZE,  y: 2.5 * GRID_SIZE },
-      { x: 12.5 * GRID_SIZE, y: 2.5 * GRID_SIZE },
-      { x: 12.5 * GRID_SIZE, y: 10.5 * GRID_SIZE },
-      { x: 18.5 * GRID_SIZE, y: 10.5 * GRID_SIZE }
+      { x: (4 + 0.5) * GRID_SIZE,  y: (5 + 0.5) * GRID_SIZE },
+
+      { x: (11 + 0.5) * GRID_SIZE,  y: (11 + 0.5) * GRID_SIZE },
+
+      { x: (23 + 0.5) * GRID_SIZE, y: (9 + 0.5) * GRID_SIZE },
+
+      { x: (17 + 0.5) * GRID_SIZE, y: (18 + 0.5) * GRID_SIZE },
+
+      { x: (7 + 0.5) * GRID_SIZE, y: (20 + 0.5) * GRID_SIZE },
+
+      { x: (7 + 0.5) * GRID_SIZE, y: (23 + 0.5) * GRID_SIZE },
+
+      { x: (22 + 0.5) * GRID_SIZE, y: (23 + 0.5) * GRID_SIZE },
+
+      { x: (30 + 0.3) * GRID_SIZE, y: (29 + 0.5) * GRID_SIZE },
     ];
     const goal = path[path.length - 1];
 
@@ -340,7 +535,7 @@
     let projectiles = [];
 
     let spawnTimer = 0;
-    let spawnInterval = 1400; // ms
+    let spawnInterval = 1400;
     let enemiesToSpawn = 5;
     let lastFrameTime = performance.now();
 
@@ -355,23 +550,19 @@
         towerButtons.forEach((b) => b.classList.remove("selected"));
         btn.classList.add("selected");
         selectedTowerType = btn.dataset.towerType;
-
-        // Start music on first interaction
-        startMusicOnce();
+        tryStartMusic();
       });
     });
 
     canvas.addEventListener("click", placeTowerFromClick);
 
     function placeTowerFromClick(event) {
-      // Block tower placement after game over or victory
       if (lives <= 0 || gameEnded) {
         log("The game is over. Refresh the page to play again.");
         return;
       }
 
-      // Start music on first legitimate gameplay click
-      startMusicOnce();
+      tryStartMusic();
 
       const rect = canvas.getBoundingClientRect();
       const scaleX = canvas.width / rect.width;
@@ -496,6 +687,8 @@
         spriteKey,
         stunnedUntil: 0
       });
+
+      requestMusicStart();
     }
 
     function update(dt) {
@@ -510,9 +703,8 @@
         }
       } else if (enemies.length === 0) {
 
-        // Victory condition: all enemies cleared on Wave 10
         if (wave >= 10) {
-          log("You have vanquished the final wave!");
+          log("You have vanquished the final wave of Grovefall!");
           stopMusic();
           victorySfx.play().catch(()=>{});
           gameWon = true;
@@ -520,7 +712,6 @@
           return;
         }
 
-        // Next wave
         wave += 1;
         waveValue.textContent = wave;
         enemiesToSpawn = 5 + wave * 2;
@@ -533,11 +724,17 @@
         moveEnemy(e, dt);
         if (reachedGoal(e)) {
           enemies.splice(i, 1);
+
+          crystalHits = Math.min(10, crystalHits + 1);
+          updateCrystalStage();
+          updateCrystalHpUi();
+          playCrystalDamageSfx();
+
           lives -= 1;
           livesValue.textContent = lives;
           log("An enemy reached the crystal. Lives left: " + lives);
           if (lives <= 0 && !gameEnded) {
-            log("The crystal has fallen. Game over.");
+            log("The crystal has fallen. Grovefall is lost.");
             stopMusic();
             defeatSfx.play().catch(()=>{});
             gameEnded = true;
@@ -569,7 +766,6 @@
 
             p.target.hp -= p.damage;
             if (p.target.hp <= 0) {
-              // Play enemy-specific death SFX
               playEnemyDeathSfx(p.target.spriteKey);
 
               const idx = enemies.indexOf(p.target);
@@ -638,7 +834,6 @@
     function fireAtTarget(tower, target) {
       tower.cooldown = tower.fireRate;
 
-      // Play tower-specific projectile sound with subtle pitch variation
       if (tower.type === "mage") {
         playSfxWithVariation(mageOrbSfx, 0.95, 1.05);
       } else if (tower.type === "sonic") {
@@ -660,33 +855,15 @@
       });
     }
 
-    // DRAWING
-
     function drawBackground() {
       const bg = loadedSprites.background;
       if (bg && bg.complete && bg.naturalWidth > 0) {
-        const canvasAspect = canvas.width / canvas.height;
-        const imgAspect = bg.naturalWidth / bg.naturalHeight;
-
-        let drawWidth, drawHeight, offsetX, offsetY;
-        if (imgAspect > canvasAspect) {
-          drawHeight = canvas.height;
-          drawWidth = bg.naturalWidth * (drawHeight / bg.naturalHeight);
-          offsetX = (canvas.width - drawWidth) / 2;
-          offsetY = 0;
-        } else {
-          drawWidth = canvas.width;
-          drawHeight = bg.naturalHeight * (drawWidth / bg.naturalWidth);
-          offsetX = 0;
-          offsetY = (canvas.height - drawHeight) / 2;
-        }
-        ctx.drawImage(bg, offsetX, offsetY, drawWidth, drawHeight);
+        ctx.drawImage(bg, 0, 0, canvas.width, canvas.height);
       } else {
         ctx.fillStyle = colors.grass;
         ctx.fillRect(0, 0, canvas.width, canvas.height);
       }
 
-      // path overlay
       ctx.lineWidth = GRID_SIZE * 0.65;
       ctx.strokeStyle = colors.path;
       ctx.lineCap = "round";
@@ -696,25 +873,6 @@
         ctx.lineTo(path[i].x, path[i].y);
       }
       ctx.stroke();
-
-      // goal magic crystal with glow
-      const crystalSprite = loadedSprites.magicCrystal;
-      if (crystalSprite && crystalSprite.complete) {
-        ctx.save();
-        ctx.shadowColor = colors.crystalGlow;
-        ctx.shadowBlur = 28;
-        drawSpriteNormalized(crystalSprite, goal.x, goal.y, GRID_SIZE * 2.2);
-        ctx.restore();
-      } else {
-        ctx.save();
-        ctx.shadowColor = colors.crystalGlow;
-        ctx.shadowBlur = 24;
-        ctx.fillStyle = colors.crystal;
-        ctx.beginPath();
-        ctx.arc(goal.x, goal.y, 14, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.restore();
-      }
     }
 
     function drawSpriteNormalized(sprite, x, y, maxSize) {
@@ -734,7 +892,7 @@
     }
 
     function drawTowers(time) {
-      const TOWER_SIZE = GRID_SIZE * 1.4;
+      const TOWER_SIZE = GRID_SIZE * 4; // tower size set to 1.4 as requested
       towers.forEach((t) => {
         ctx.beginPath();
         ctx.strokeStyle = "rgba(255,255,255,0.06)";
@@ -768,6 +926,13 @@
         ctx.fillRect(bx, by, barWidth, barHeight);
         ctx.fillStyle = "#5eff7b";
         ctx.fillRect(bx, by, barWidth * Math.max(0, hpRatio), barHeight);
+
+        if (e.stunnedUntil > Date.now()) {
+          ctx.fillStyle = "rgba(173, 216, 255, 0.6)";
+          ctx.beginPath();
+          ctx.arc(e.x, e.y - ENEMY_SIZE / 2, 5, 0, Math.PI * 2);
+          ctx.fill();
+        }
       });
     }
 
@@ -884,7 +1049,7 @@
       ctx.fillText("Victory!", canvas.width / 2, canvas.height / 2 - 20);
 
       ctx.font = "18px system-ui";
-      ctx.fillText("You have defeated all 10 waves.", canvas.width / 2, canvas.height / 2 + 10);
+      ctx.fillText("You have defended Grovefall through all 10 waves.", canvas.width / 2, canvas.height / 2 + 10);
       ctx.fillText("Refresh the page to play again.", canvas.width / 2, canvas.height / 2 + 40);
 
       ctx.restore();
@@ -936,16 +1101,31 @@
         gameStatus.style.background = "rgba(76, 175, 80, 0.14)";
         gameStatus.style.color = "#c8e6c9";
 
-        log("Welcome, Wardens of the Arcane Forest.");
+        log("Welcome to Grovefall.");
         log("Archer, Mage, and Sonic Towers are ready to be placed.");
         log("Enemies emerge from the fire portal and seek the magic crystal.");
 
-        // Position the animated fire portal at the spawn point
         const spawn = path[0];
         if (portalImg) {
           portalImg.style.left = `${spawn.x}px`;
           portalImg.style.top  = `${spawn.y}px`;
+          portalImg.style.display = 'block';
         }
+
+        crystalStages.forEach(img => {
+          if (img) {
+            img.style.left = `${goal.x}px`;
+            img.style.top  = `${goal.y}px`;
+          }
+        });
+
+        waveValue.textContent = wave;
+        goldValue.textContent = gold;
+        livesValue.textContent = lives;
+
+        crystalHits = 0;
+        updateCrystalStage();
+        updateCrystalHpUi();
 
         lastFrameTime = performance.now();
         requestAnimationFrame(gameLoop);
@@ -954,8 +1134,11 @@
         gameStatus.textContent = "Asset error";
         gameStatus.style.background = "rgba(244, 67, 54, 0.14)";
         gameStatus.style.color = "#ffcdd2";
-        console.error(error);
+        console.error("Game failed to load assets:", error);
       });
+
+    document.addEventListener('click', tryStartMusic, { once: true });
+    document.addEventListener('keydown', tryStartMusic, { once: true });
   </script>
 </body>
 </html>
