@@ -183,6 +183,28 @@
 
     const portalImg = document.getElementById("firePortalAnimated");
 
+    // --- Background Music Setup ---
+    const bgMusic = new Audio("assets/audio/WhisperingGroves.mp3");
+    bgMusic.loop = true;
+    bgMusic.volume = 0.5;   // adjust to taste (0.0 - 1.0)
+
+    let musicStarted = false;
+
+    function startMusicOnce() {
+      if (musicStarted) return;
+      musicStarted = true;
+
+      bgMusic.play().catch(err => {
+        console.warn("Music could not start yet, retrying on next interaction.", err);
+        musicStarted = false;
+      });
+    }
+
+    function stopMusic() {
+      bgMusic.pause();
+      bgMusic.currentTime = 0;
+    }
+
     function log(message) {
       const div = document.createElement("div");
       const time = new Date().toLocaleTimeString();
@@ -281,6 +303,9 @@
         towerButtons.forEach((b) => b.classList.remove("selected"));
         btn.classList.add("selected");
         selectedTowerType = btn.dataset.towerType;
+
+        // Start music on first interaction
+        startMusicOnce();
       });
     });
 
@@ -292,6 +317,9 @@
         log("The game is over. Refresh the page to play again.");
         return;
       }
+
+      // Start music on first legitimate gameplay click
+      startMusicOnce();
 
       const rect = canvas.getBoundingClientRect();
       const scaleX = canvas.width / rect.width;
@@ -444,6 +472,7 @@
           log("An enemy reached the crystal. Lives left: " + lives);
           if (lives <= 0) {
             log("The crystal has fallen. Game over.");
+            stopMusic();
           }
         }
       }
